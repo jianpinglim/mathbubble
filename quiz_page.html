@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathBubble Quiz</title>
+    <link rel="stylesheet" href="quiz.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase JavaScript Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- MathJax for rendering math symbols -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        // Prevent Chrome extension errors from breaking the app
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('chrome-extension://')) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.warn('Chrome extension error ignored:', e.message);
+                return false;
+            }
+        }, true);
+
+        // Prevent unhandled promise rejection errors from extensions
+        window.addEventListener('unhandledrejection', function(e) {
+            if (e.reason && e.reason.toString().includes('chrome-extension://')) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.warn('Chrome extension promise rejection ignored:', e.reason);
+                return false;
+            }
+        });
+
+        // MathJax configuration
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            },
+            startup: {
+                ready: () => {
+                    console.log('MathJax is loaded and ready!');
+                    MathJax.startup.defaultReady();
+                }
+            }
+        };
+    </script>
+</head>
+<body>
+    <!-- ...rest of your HTML content stays the same... -->
+    <div class="app-container">
+        <!-- Top Header -->
+        <header class="top-header">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="/" class="logo-link">
+                        <span class="logo-icon">🧮</span>
+                        <span class="logo-text">MathBubble</span>
+                    </a>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <span class="progress-text" id="progress-text">1/10</span>
+                </div>
+                <div class="lives-container" id="lives-container">
+                    <span class="lives-label">Lives:</span>
+                    <div class="hearts" id="hearts">
+                        <span class="heart filled">❤️</span>
+                        <span class="heart filled">❤️</span>
+                        <span class="heart filled">❤️</span>
+                        <span class="heart filled">❤️</span>
+                        <span class="heart filled">❤️</span>
+                    </div>
+                </div>
+                <div class="user-profile" id="user-profile">
+                    <div class="user-avatar" id="user-avatar">👤</div>
+                    <div class="user-menu" id="user-menu">
+                        <div class="user-info">
+                            <div class="user-name" id="user-name">Guest User</div>
+                            <div class="user-email" id="user-email">guest@mathbubble.com</div>
+                        </div>
+                        <div class="menu-divider"></div>
+                        <button class="menu-item" id="sign-out-btn">
+                            <span>🚪</span>
+                            <span>Sign Out</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Loading Screen -->
+        <div id="loading" class="loading-screen">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <h2>Preparing your quiz...</h2>
+                <p>Getting ready to test your math skills!</p>
+            </div>
+        </div>
+
+        <!-- Quiz Screen -->
+        <main id="quiz-container" class="quiz-screen" style="display: none;">
+            <div class="quiz-content">
+                <div class="topic-chip" id="topic-chip">Mathematics</div>
+                
+                <div class="question-section">
+                    <h2 class="question-title" id="question-text">
+                        <!-- Question will be loaded here -->
+                    </h2>
+                </div>
+                
+                <div class="options-grid" id="options-container">
+                    <!-- Options will be loaded here -->
+                </div>
+
+                <div class="action-area">
+                    <button id="check-btn" class="check-button" disabled>
+                        <span>CHECK</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Results Screen -->
+        <div id="results-container" class="results-screen" style="display: none;">
+            <div class="results-content">
+                <div class="results-icon" id="results-icon">🎉</div>
+                <h2 class="results-title" id="results-title">Quiz Complete!</h2>
+                <div class="results-stats">
+                    <div class="stat-item">
+                        <div class="stat-number" id="final-score">8/10</div>
+                        <div class="stat-label">Correct</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="final-percentage">80%</div>
+                        <div class="stat-label">Accuracy</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="lives-remaining">3</div>
+                        <div class="stat-label">Lives Left</div>
+                    </div>
+                </div>
+                <div class="results-breakdown" id="results-breakdown">
+                    <!-- Detailed results will be shown here -->
+                </div>
+                <button id="restart-btn" class="primary-button">TRY AGAIN</button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-container" class="game-over-screen" style="display: none;">
+            <div class="game-over-content">
+                <div class="game-over-icon">💔</div>
+                <h2 class="game-over-title">Out of Lives!</h2>
+                <p class="game-over-text">Don't worry, practice makes perfect!</p>
+                <div class="game-over-stats">
+                    <div class="stat-item">
+                        <div class="stat-number" id="game-over-score">5/7</div>
+                        <div class="stat-label">Questions Answered</div>
+                    </div>
+                </div>
+                <button id="restart-game-btn" class="primary-button">START OVER</button>
+            </div>
+        </div>
+
+        <!-- Error Screen -->
+        <div id="error-container" class="error-screen" style="display: none;">
+            <div class="error-content">
+                <div class="error-icon">⚠️</div>
+                <h2 class="error-title">Oops! Something went wrong</h2>
+                <p class="error-message" id="error-message">Unable to load quiz questions. Please try again.</p>
+                <button id="retry-btn" class="primary-button">RETRY</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="quiz.js"></script>
+</body>
+</html>

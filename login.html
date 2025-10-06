@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathBubble - Login</title>
+    <link rel="stylesheet" href="login.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase JavaScript Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="login-container">
+        
+        <!-- Login Card -->
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo">
+                    <span class="logo-icon">🧮</span>
+                    <span class="logo-text">MathBubble</span>
+                </div>
+                <h1 class="login-title">Welcome Back!</h1>
+                <p class="login-subtitle">Sign in to continue your math journey</p>
+            </div>
+
+            <div class="login-content">
+                <!-- Loading State -->
+                <div id="loading-state" class="loading-state" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Signing you in...</p>
+                </div>
+
+                <!-- Already Signed In State -->
+                <div id="already-signed-in" class="already-signed-in" style="display: none;">
+                    <div class="signed-in-icon">✅</div>
+                    <h3 class="signed-in-title">Already Signed In</h3>
+                    <p class="signed-in-message">You're already signed in as <span id="current-user-email">user@email.com</span></p>
+                    <div class="signed-in-actions">
+                        <button id="go-home-btn" class="primary-action-btn">Go to Home</button>
+                        <button id="sign-out-and-switch-btn" class="secondary-action-btn">Sign Out & Switch Account</button>
+                    </div>
+                </div>
+
+                <!-- Login Form -->
+                <div id="login-form" class="login-form">
+                    <button id="google-login-btn" class="google-login-btn">
+                        <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
+
+                    <div class="divider">
+                        <div class="divider-line"></div>
+                        <span class="divider-text">or</span>
+                        <div class="divider-line"></div>
+                    </div>
+
+                    <button id="guest-login-btn" class="guest-login-btn">
+                        <span class="guest-icon">👤</span>
+                        <span>Continue as Guest</span>
+                    </button>
+
+                    <p class="login-disclaimer">
+                        By continuing, you agree to our 
+                        <a href="#" class="link">Terms of Service</a> and 
+                        <a href="#" class="link">Privacy Policy</a>
+                    </p>
+                </div>
+
+                <!-- Error State -->
+                <div id="error-state" class="error-state" style="display: none;">
+                    <div class="error-icon">⚠️</div>
+                    <h3 class="error-title">Login Failed</h3>
+                    <p class="error-message" id="error-message">Something went wrong. Please try again.</p>
+                    <button id="retry-btn" class="retry-btn">Try Again</button>
+                </div>
+            </div>
+
+            <div class="login-footer">
+                <p class="footer-text">
+                    New to MathBubble? 
+                    <span class="highlight-text">Just click "Continue with Google" to get started!</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Features Preview -->
+        <div class="features-preview">
+            <div class="feature-item">
+                <div class="feature-icon">🎯</div>
+                <div class="feature-text">
+                    <h4>Adaptive Quizzes</h4>
+                    <p>Questions that match your skill level</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">📊</div>
+                <div class="feature-text">
+                    <h4>Track Progress</h4>
+                    <p>See your improvement over time</p>
+                </div>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">🏆</div>
+                <div class="feature-text">
+                    <h4>Achievements</h4>
+                    <p>Unlock rewards as you learn</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+</body>
+</html>
