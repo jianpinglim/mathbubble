@@ -42,21 +42,30 @@ async function initializeSupabase() {
             console.log('URL:', SUPABASE_URL);
             console.log('Key length:', SUPABASE_ANON_KEY.length);
             
-            // Create client with explicit options to avoid header issues
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                auth: {
-                    autoRefreshToken: true,
-                    persistSession: true,
-                    detectSessionInUrl: true,
-                    flowType: 'pkce'
-                },
-                global: {
-                    headers: {
-                        'Content-Type': 'application/json'
+            // Try creating client with minimal configuration first
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase client initialized with basic config');
+            } catch (basicError) {
+                console.warn('⚠️ Basic config failed, trying with options:', basicError);
+                
+                // Create client with minimal options to avoid header issues
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                    auth: {
+                        autoRefreshToken: true,
+                        persistSession: true,
+                        detectSessionInUrl: true,
+                        flowType: 'implicit' // Change from pkce to implicit
+                    },
+                    global: {
+                        headers: {}
+                    },
+                    db: {
+                        schema: 'public'
                     }
-                }
-            });
-            console.log('✅ Supabase client initialized');
+                });
+                console.log('✅ Supabase client initialized with advanced config');
+            }
         } else {
             console.error('❌ Supabase library not loaded');
         }
