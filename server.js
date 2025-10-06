@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://your-domain.com'] // Replace with your actual domain
+        ? ['https://mathbubble.onrender.com'] // Replace with your actual domain
         : ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true
 }));
