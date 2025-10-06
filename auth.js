@@ -241,11 +241,16 @@ async function signInWithGoogle() {
     }
 
     try {
-        console.log('🌐 Current origin:', window.location.origin);
+        const redirectUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000/'
+            : 'https://mathbubble.onrender.com/';
+            
+        console.log('🌐 Using redirect URL:', redirectUrl);
+        
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/`,
+                redirectTo: redirectUrl,
                 queryParams: {
                     access_type: 'offline',
                     prompt: 'consent'

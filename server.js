@@ -11,11 +11,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+// CORS configuration
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://mathbubble.onrender.com'] // Replace with your actual domain
+        ? ['https://mathbubble.onrender.com']
         : ['http://localhost:3000', 'http://127.0.0.1:3000'],
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' })); // Limit payload size
 
