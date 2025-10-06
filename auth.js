@@ -25,11 +25,48 @@ async function initializeSupabase() {
     await loadConfig();
     try {
         if (window.supabase) {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            // Validate configuration values
+            if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+                console.error('❌ Missing Supabase configuration');
+                return;
+            }
+            
+            if (!SUPABASE_URL.startsWith('https://') || SUPABASE_ANON_KEY.length < 100) {
+                console.error('❌ Invalid Supabase configuration format');
+                console.log('URL:', SUPABASE_URL?.substring(0, 30) + '...');
+                console.log('Key length:', SUPABASE_ANON_KEY?.length);
+                return;
+            }
+            
+            console.log('🔧 Creating Supabase client...');
+            console.log('URL:', SUPABASE_URL);
+            console.log('Key length:', SUPABASE_ANON_KEY.length);
+            
+            // Create client with explicit options to avoid header issues
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    autoRefreshToken: true,
+                    persistSession: true,
+                    detectSessionInUrl: true,
+                    flowType: 'pkce'
+                },
+                global: {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            });
             console.log('✅ Supabase client initialized');
+        } else {
+            console.error('❌ Supabase library not loaded');
         }
     } catch (error) {
-        console.warn('❌ Supabase client initialization failed:', error);
+        console.error('❌ Supabase client initialization failed:', error);
+        console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack?.substring(0, 500)
+        });
     }
 }
 
@@ -107,44 +144,54 @@ async function initializeAuth() {
                     
                     console.log('✅ User signed in:', currentUser.email);
                     
-                    // Only redirect to home if not explicitly on login page
-                    if (isLoginPage() && !isRedirecting && !window.location.search.includes('force')) {
-                        console.log('🔄 User is on login page but authenticated, staying on login...');
-                        return;
+                    // Clean up URL hash tokens after successful authentication
+                    if (window.location.hash && window.location.hash.includes('access_token')) {
+                        console.log('🧹 Cleaning up URL tokens...');
+                        history.replaceState(null, null, window.location.pathname);
                     }
+                    
+                    // Update UI if on home page
+                    if (isHomePage()) {
+                        updateAuthUI();
+                    }
+                    
                 } else if (event === 'SIGNED_OUT') {
                     currentUser = null;
                     console.log('🚪 User signed out');
                 }
             });
             
-            const { data: { session }, error } = await supabase.auth.getSession();
-            
-            if (error) {
-                console.warn('⚠️ Error getting session:', error);
-                return handleUnauthenticated();
-            }
-
-            if (session?.user) {
-                console.log('✅ Found authenticated user:', session.user.email);
-                currentUser = {
-                    id: session.user.id,
-                    email: session.user.email,
-                    name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-                    avatar: session.user.user_metadata?.avatar_url || '👤',
-                    isGuest: false
-                };
+            // Try to get session with better error handling
+            try {
+                console.log('🔍 Attempting to get current session...');
+                const { data: { session }, error } = await supabase.auth.getSession();
                 
-                // If on login page and we have an authenticated user, allow them to stay
-                if (isLoginPage()) {
-                    console.log('� Authenticated user on login page, allowing access...');
+                if (error) {
+                    console.warn('⚠️ Error getting session:', error);
+                    // Don't return here, continue to allow guest access
+                    authInitialized = true;
+                    return handleUnauthenticated();
+                }
+
+                if (session?.user) {
+                    console.log('✅ Found authenticated user:', session.user.email);
+                    currentUser = {
+                        id: session.user.id,
+                        email: session.user.email,
+                        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                        avatar: session.user.user_metadata?.avatar_url || '👤',
+                        isGuest: false
+                    };
+                    
                     authInitialized = true;
                     return currentUser;
                 }
-                
-                authInitialized = true;
-                return currentUser;
+            } catch (sessionError) {
+                console.error('❌ Session retrieval failed:', sessionError);
+                // Continue to guest mode if session fails
             }
+        } else {
+            console.warn('⚠️ Supabase client not available, continuing with guest mode');
         }
 
         return handleUnauthenticated();
