@@ -217,8 +217,8 @@ function displayQuestion() {
     // Update topic chip
     topicChipEl.textContent = question.topic;
     
-    // Update question text
-    questionTextEl.innerHTML = question.question;
+    // Update question text (secure)
+    questionTextEl.textContent = question.question;
     
     // Clear and populate options
     optionsContainerEl.innerHTML = '';
@@ -255,7 +255,7 @@ function createOptionElement(optionText, index) {
     
     const textEl = document.createElement('div');
     textEl.className = 'option-text';
-    textEl.innerHTML = optionText;
+    textEl.textContent = optionText; // Secure: prevents XSS
     
     contentEl.appendChild(letterEl);
     contentEl.appendChild(textEl);
