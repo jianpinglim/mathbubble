@@ -31,6 +31,7 @@ async function loadConfig() {
 }
 
 // Initialize Supabase client
+// Initialize Supabase client
 async function initializeSupabase() {
     await loadConfig();
     try {
@@ -52,17 +53,9 @@ async function initializeSupabase() {
             console.log('URL:', SUPABASE_URL);
             console.log('Key length:', SUPABASE_ANON_KEY.length);
             
-            // Create client with minimal configuration - DO NOT add custom headers
-            // The headers issue causes the "Invalid value" error in production
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                auth: {
-                    autoRefreshToken: true,
-                    persistSession: true,
-                    detectSessionInUrl: true,
-                    flowType: 'pkce'
-                }
-                // Do NOT add global.headers - this causes issues with OAuth callback
-            });
+            // Create with absolutely NO custom configuration
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            
             console.log('✅ Supabase client initialized');
         } else {
             console.error('❌ Supabase library not loaded');
