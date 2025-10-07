@@ -52,14 +52,18 @@ async function initializeSupabase() {
             console.log('URL:', SUPABASE_URL);
             console.log('Key length:', SUPABASE_ANON_KEY.length);
             
-            // Use implicit flow to avoid PKCE code exchange issues
+            // Create client with minimal configuration - DO NOT add custom headers
+            // The headers issue causes the "Invalid value" error in production
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: {
-                    flowType: 'implicit'  // ← Forces implicit flow, no code exchange
+                    autoRefreshToken: true,
+                    persistSession: true,
+                    detectSessionInUrl: true,
+                    flowType: 'pkce'
                 }
+                // Do NOT add global.headers - this causes issues with OAuth callback
             });
-            
-            console.log('✅ Supabase client initialized with implicit flow');
+            console.log('✅ Supabase client initialized');
         } else {
             console.error('❌ Supabase library not loaded');
         }
@@ -164,30 +168,42 @@ async function initializeAuth() {
                 }
             });
             
-            // Try to get session - this will process URL hash if present
-            try {
-                console.log('🔍 Attempting to get current session...');
-                const { data: { session }, error } = await supabase.auth.getSession();
+            // If there's an access_token in the URL hash, wait for onAuthStateChange
+            // Don't call getSession() as it causes the header error
+            if (window.location.hash && window.location.hash.includes('access_token')) {
+                console.log('⏳ OAuth callback detected, waiting for auth state change...');
+                // Wait for the auth state listener to process the token
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 
-                if (error) {
-                    console.warn('⚠️ Error getting session:', error.message);
-                    // Don't throw, continue to guest mode
-                } else if (session?.user) {
-                    console.log('✅ Found authenticated user:', session.user.email);
-                    currentUser = {
-                        id: session.user.id,
-                        email: session.user.email,
-                        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-                        avatar: session.user.user_metadata?.avatar_url || '👤',
-                        isGuest: false
-                    };
-                    
+                // Check if user was set by the listener
+                if (currentUser) {
                     authInitialized = true;
                     return currentUser;
                 }
-            } catch (sessionError) {
-                console.error('❌ Session retrieval failed:', sessionError);
-                // Continue to guest mode if session fails
+            } else {
+                // Only call getSession if there's NO hash (normal page load)
+                try {
+                    console.log('🔍 Attempting to get current session...');
+                    const { data: { session }, error } = await supabase.auth.getSession();
+                    
+                    if (error) {
+                        console.warn('⚠️ Error getting session:', error.message);
+                    } else if (session?.user) {
+                        console.log('✅ Found authenticated user:', session.user.email);
+                        currentUser = {
+                            id: session.user.id,
+                            email: session.user.email,
+                            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                            avatar: session.user.user_metadata?.avatar_url || '👤',
+                            isGuest: false
+                        };
+                        
+                        authInitialized = true;
+                        return currentUser;
+                    }
+                } catch (sessionError) {
+                    console.error('❌ Session retrieval failed:', sessionError);
+                }
             }
         } else {
             console.warn('⚠️ Supabase client not available, continuing with guest mode');
