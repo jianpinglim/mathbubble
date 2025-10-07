@@ -86,9 +86,17 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    const host = process.env.NODE_ENV === 'production' ? 'mathbubble.onrender.com' : 'localhost';
     console.log(`🚀 MathBubble server running on port ${PORT}`);
-    console.log(`🏠 Home page: ${process.env.NODE_ENV === 'production' ? 'https://' + host : 'http://localhost:' + PORT}`);
-    console.log(`📚 Login page: ${process.env.NODE_ENV === 'production' ? 'https://' + host + '/login' : 'http://localhost:' + PORT + '/login'}`);
-    console.log(`🎯 Quiz page: ${process.env.NODE_ENV === 'production' ? 'https://' + host + '/quiz' : 'http://localhost:' + PORT + '/quiz'}`);
+    
+    if (process.env.NODE_ENV === 'production') {
+        // Use Railway's public domain if available, otherwise generic production message
+        const domain = process.env.RAILWAY_PUBLIC_DOMAIN || 'your-production-domain.com';
+        console.log(`🏠 Home page: https://${domain}`);
+        console.log(`📚 Login page: https://${domain}/login`);
+        console.log(`🎯 Quiz page: https://${domain}/quiz`);
+    } else {
+        console.log(`🏠 Home page: http://localhost:${PORT}`);
+        console.log(`📚 Login page: http://localhost:${PORT}/login`);
+        console.log(`🎯 Quiz page: http://localhost:${PORT}/quiz`);
+    }
 });
