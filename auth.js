@@ -111,6 +111,14 @@ async function initializeAuth() {
         return currentUser;
     }
     
+    // Check if user just signed out - don't auto-authenticate
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('signed_out') === 'true') {
+        console.log('🚪 User just signed out - skipping auto-authentication');
+        authInitialized = true;
+        return null;
+    }
+    
     console.log('🔍 Initializing authentication...');
     
     // Initialize Supabase with config
@@ -143,6 +151,13 @@ async function initializeAuth() {
             // Set up auth state change listener BEFORE getting session
             supabase.auth.onAuthStateChange(async (event, session) => {
                 console.log('🔄 Auth state changed:', event, session?.user?.email);
+                
+                // Check if user just signed out - don't re-authenticate
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('signed_out') === 'true' && event === 'SIGNED_IN') {
+                    console.log('🚫 Ignoring sign-in event - user just signed out');
+                    return;
+                }
                 
                 if (event === 'SIGNED_IN' && session?.user) {
                     currentUser = {
@@ -319,26 +334,55 @@ async function signOut() {
     console.log('🚪 Signing out...');
     
     try {
-        if (supabase && currentUser && !currentUser.isGuest) {
-            await supabase.auth.signOut();
-        }
-        
-        // Clear all user data
-        localStorage.removeItem('guestUser');
+        // Clear current user immediately to prevent re-authentication
         currentUser = null;
         authInitialized = false;
         
-        console.log('✅ Signed out successfully');
+        if (supabase && !currentUser?.isGuest) {
+            // Sign out from Supabase
+            await supabase.auth.signOut();
+        }
         
-        // Redirect to login
+        // Clear all possible authentication storage
+        localStorage.removeItem('guestUser');
+        sessionStorage.clear();
+        
+        // Clear Supabase session storage specifically
+        const supabaseKeys = Object.keys(localStorage).filter(key => 
+            key.startsWith('sb-') || key.includes('supabase')
+        );
+        supabaseKeys.forEach(key => localStorage.removeItem(key));
+        
+        // Clear any cookies (if any)
+        document.cookie.split(";").forEach(cookie => {
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+        });
+        
+        console.log('✅ Signed out successfully - all data cleared');
+        
+        // Force redirect to login without allowing re-authentication
         isRedirecting = true;
-        window.location.href = '/login';
+        window.location.href = '/login?signed_out=true';
+        
     } catch (error) {
         console.error('❌ Sign out error:', error);
-        // Force redirect even if there's an error
+        
+        // Force clear everything even if there's an error
+        currentUser = null;
+        authInitialized = false;
         localStorage.removeItem('guestUser');
+        sessionStorage.clear();
+        
+        // Clear Supabase storage
+        const supabaseKeys = Object.keys(localStorage).filter(key => 
+            key.startsWith('sb-') || key.includes('supabase')
+        );
+        supabaseKeys.forEach(key => localStorage.removeItem(key));
+        
         isRedirecting = true;
-        window.location.href = '/login';
+        window.location.href = '/login?signed_out=true';
     }
 }
 
