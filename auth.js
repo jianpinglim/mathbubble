@@ -168,17 +168,22 @@ async function initializeAuth() {
                 }
             });
             
-            // If there's an access_token in the URL hash, wait for onAuthStateChange
-            // Don't call getSession() as it causes the header error
-            if (window.location.hash && window.location.hash.includes('access_token')) {
-                console.log('⏳ OAuth callback detected, waiting for auth state change...');
-                // Wait for the auth state listener to process the token
-                await new Promise(resolve => setTimeout(resolve, 2000));
+            // Check if we're in an OAuth callback (either hash or code parameter)
+            const hasOAuthCallback = (window.location.hash && window.location.hash.includes('access_token')) || 
+                                     (window.location.search && window.location.search.includes('code='));
+            
+            if (hasOAuthCallback) {
+                console.log('⏳ OAuth callback detected in URL, waiting for auth state change...');
+                // Wait longer for the auth state listener to process the callback
+                await new Promise(resolve => setTimeout(resolve, 3000));
                 
                 // Check if user was set by the listener
                 if (currentUser) {
+                    console.log('✅ User authenticated via OAuth callback');
                     authInitialized = true;
                     return currentUser;
+                } else {
+                    console.warn('⚠️ OAuth callback processed but no user set');
                 }
             } else {
                 // Only call getSession if there's NO hash (normal page load)
