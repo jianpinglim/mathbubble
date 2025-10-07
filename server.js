@@ -20,7 +20,7 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '10mb' })); // Limit payload size
+app.use(express.json({ limit: '10mb' }));
 
 // Security headers
 app.use((req, res, next) => {
@@ -52,7 +52,6 @@ app.use(express.static(__dirname));
 
 // API endpoint to provide Supabase config to frontend
 app.get('/api/config', (req, res) => {
-    // Rate limiting would be added here in production
     try {
         if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
             return res.status(500).json({ error: 'Server configuration error' });
@@ -87,7 +86,7 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    const host = process.env.NODE_ENV === 'production' ? 'your-app-url' : 'localhost';
+    const host = process.env.NODE_ENV === 'production' ? 'mathbubble.onrender.com' : 'localhost';
     console.log(`🚀 MathBubble server running on port ${PORT}`);
     console.log(`🏠 Home page: ${process.env.NODE_ENV === 'production' ? 'https://' + host : 'http://localhost:' + PORT}`);
     console.log(`📚 Login page: ${process.env.NODE_ENV === 'production' ? 'https://' + host + '/login' : 'http://localhost:' + PORT + '/login'}`);

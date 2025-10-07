@@ -31,7 +31,6 @@ async function loadConfig() {
 }
 
 // Initialize Supabase client
-// Initialize Supabase client
 async function initializeSupabase() {
     await loadConfig();
     try {
@@ -53,10 +52,14 @@ async function initializeSupabase() {
             console.log('URL:', SUPABASE_URL);
             console.log('Key length:', SUPABASE_ANON_KEY.length);
             
-            // Create with absolutely NO custom configuration
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            // Use implicit flow to avoid PKCE code exchange issues
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    flowType: 'implicit'  // ← Forces implicit flow, no code exchange
+                }
+            });
             
-            console.log('✅ Supabase client initialized');
+            console.log('✅ Supabase client initialized with implicit flow');
         } else {
             console.error('❌ Supabase library not loaded');
         }
