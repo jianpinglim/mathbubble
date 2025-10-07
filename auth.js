@@ -8,9 +8,13 @@ let supabase = null;
 // Get the correct redirect URL based on environment
 function getRedirectUrl() {
     const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const redirectUrl = isDevelopment 
-        ? `http://localhost:3000/`
-        : `https://mathbubble.onrender.com/`;
+    
+    if (isDevelopment) {
+        return `http://localhost:3000/`;
+    }
+    
+    // For production, use the current domain (supports Railway, Render, etc.)
+    const redirectUrl = `${window.location.origin}/`;
     console.log('🌐 Using redirect URL:', redirectUrl);
     return redirectUrl;
 }
