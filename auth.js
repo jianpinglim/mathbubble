@@ -5,6 +5,16 @@ let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 // Initialize Supabase client
 let supabase = null;
 
+// Get the correct redirect URL based on environment
+function getRedirectUrl() {
+    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const redirectUrl = isDevelopment 
+        ? `http://localhost:3000/`
+        : `https://mathbubble.onrender.com/`;
+    console.log('🌐 Using redirect URL:', redirectUrl);
+    return redirectUrl;
+}
+
 // Load config from server in production
 async function loadConfig() {
     if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -42,30 +52,18 @@ async function initializeSupabase() {
             console.log('URL:', SUPABASE_URL);
             console.log('Key length:', SUPABASE_ANON_KEY.length);
             
-            // Try creating client with minimal configuration first
-            try {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('✅ Supabase client initialized with basic config');
-            } catch (basicError) {
-                console.warn('⚠️ Basic config failed, trying with options:', basicError);
-                
-                // Create client with minimal options to avoid header issues
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                    auth: {
-                        autoRefreshToken: true,
-                        persistSession: true,
-                        detectSessionInUrl: true,
-                        flowType: 'implicit' // Change from pkce to implicit
-                    },
-                    global: {
-                        headers: {}
-                    },
-                    db: {
-                        schema: 'public'
-                    }
-                });
-                console.log('✅ Supabase client initialized with advanced config');
-            }
+            // Create client with minimal configuration - DO NOT add custom headers
+            // The headers issue causes the "Invalid value" error in production
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    autoRefreshToken: true,
+                    persistSession: true,
+                    detectSessionInUrl: true,
+                    flowType: 'pkce'
+                }
+                // Do NOT add global.headers - this causes issues with OAuth callback
+            });
+            console.log('✅ Supabase client initialized');
         } else {
             console.error('❌ Supabase library not loaded');
         }
@@ -84,7 +82,7 @@ let currentUser = null;
 let authInitialized = false;
 let isRedirecting = false;
 
-// Check if we're on a login page (both / and /login paths)
+// Check if we're on a login page
 function isLoginPage() {
     const path = window.location.pathname;
     return path === '/login';
@@ -109,7 +107,7 @@ async function initializeAuth() {
         return currentUser;
     }
     
-    console.log('🔐 Initializing authentication...');
+    console.log('🔍 Initializing authentication...');
     
     // Initialize Supabase with config
     await initializeSupabase();
@@ -123,9 +121,9 @@ async function initializeAuth() {
             
             // If on login page, allow access (user wants to switch accounts)
             if (isLoginPage()) {
-                console.log('� Guest user on login page, allowing login access...');
+                console.log('📝 Guest user on login page, allowing login access...');
                 authInitialized = true;
-                return null; // Return null so login page can function normally
+                return null;
             }
             
             authInitialized = true;
@@ -138,7 +136,7 @@ async function initializeAuth() {
             console.log('🔗 Current URL:', window.location.href);
             console.log('🔗 URL hash:', window.location.hash);
             
-            // Set up auth state change listener
+            // Set up auth state change listener BEFORE getting session
             supabase.auth.onAuthStateChange(async (event, session) => {
                 console.log('🔄 Auth state changed:', event, session?.user?.email);
                 
@@ -156,7 +154,7 @@ async function initializeAuth() {
                     // Clean up URL hash tokens after successful authentication
                     if (window.location.hash && window.location.hash.includes('access_token')) {
                         console.log('🧹 Cleaning up URL tokens...');
-                        history.replaceState(null, null, window.location.pathname);
+                        window.history.replaceState(null, '', window.location.pathname);
                     }
                     
                     // Update UI if on home page
@@ -170,19 +168,15 @@ async function initializeAuth() {
                 }
             });
             
-            // Try to get session with better error handling
+            // Try to get session - this will process URL hash if present
             try {
                 console.log('🔍 Attempting to get current session...');
                 const { data: { session }, error } = await supabase.auth.getSession();
                 
                 if (error) {
-                    console.warn('⚠️ Error getting session:', error);
-                    // Don't return here, continue to allow guest access
-                    authInitialized = true;
-                    return handleUnauthenticated();
-                }
-
-                if (session?.user) {
+                    console.warn('⚠️ Error getting session:', error.message);
+                    // Don't throw, continue to guest mode
+                } else if (session?.user) {
                     console.log('✅ Found authenticated user:', session.user.email);
                     currentUser = {
                         id: session.user.id,
@@ -250,11 +244,9 @@ async function signInWithGoogle() {
     }
 
     try {
-        const redirectUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:3000/'
-            : 'https://mathbubble.onrender.com/';
-            
-        console.log('🌐 Using redirect URL:', redirectUrl);
+        const redirectUrl = getRedirectUrl();
+        console.log('🌐 Current origin:', window.location.origin);
+        console.log('🎯 Target redirect URL:', redirectUrl);
         
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -329,6 +321,13 @@ async function signOut() {
     }
 }
 
+// Update auth UI helper
+function updateAuthUI() {
+    if (typeof initializePage === 'function') {
+        initializePage();
+    }
+}
+
 // Show already signed in state
 function showAlreadySignedInState(user) {
     const alreadySignedIn = document.getElementById('already-signed-in');
@@ -372,7 +371,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Initialize auth
     await initializeAuth();
 
-    // Set up login page buttons (check for both / and /login paths)
+    // Set up login page buttons
     if (isLoginPage()) {
         console.log('📝 Setting up login page event listeners...');
         
@@ -382,7 +381,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (currentUser && !currentUser.isGuest) {
                 showAlreadySignedInState(currentUser);
             } else {
-                // Show login form for guests or unauthenticated users
                 showLoginForm();
             }
         }, 100);
