@@ -3,7 +3,9 @@ let SUPABASE_URL = 'https://tmgssumdikxtgcdaykyu.supabase.co';
 let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRtZ3NzdW1kaWt4dGdjZGF5a3l1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2NjMwNDcsImV4cCI6MjA3NTIzOTA0N30.e3T1XokoA5Nb0quLEHsS9VXixgVK6SdMUYojBEvs0ug';
 
 // Initialize Supabase client
-let supabase = null;
+if (typeof window.supabaseClient === 'undefined') {
+    window.supabaseClient = null;
+}
 
 // Get the correct redirect URL based on environment
 function getRedirectUrl() {
@@ -58,7 +60,7 @@ async function initializeSupabase() {
             
             // Create client with minimal configuration - DO NOT add custom headers
             // The headers issue causes the "Invalid value" error in production
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: {
                     autoRefreshToken: true,
                     persistSession: true,
@@ -143,13 +145,13 @@ async function initializeAuth() {
         }
 
         // Check Supabase auth if available
-        if (supabase) {
+        if (window.supabaseClient) {
             console.log('🔍 Checking Supabase session...');
             console.log('🔗 Current URL:', window.location.href);
             console.log('🔗 URL hash:', window.location.hash);
             
             // Set up auth state change listener BEFORE getting session
-            supabase.auth.onAuthStateChange(async (event, session) => {
+            window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
                 console.log('🔄 Auth state changed:', event, session?.user?.email);
                 
                 // Check if user just signed out - don't re-authenticate
@@ -208,7 +210,7 @@ async function initializeAuth() {
                 // Only call getSession if there's NO hash (normal page load)
                 try {
                     console.log('🔍 Attempting to get current session...');
-                    const { data: { session }, error } = await supabase.auth.getSession();
+                    const { data: { session }, error } = await window.supabaseClient.auth.getSession();
                     
                     if (error) {
                         console.warn('⚠️ Error getting session:', error.message);
@@ -284,7 +286,7 @@ async function signInWithGoogle() {
         console.log('🌐 Current origin:', window.location.origin);
         console.log('🎯 Target redirect URL:', redirectUrl);
         
-        const { data, error } = await supabase.auth.signInWithOAuth({
+        const { data, error } = await window.supabaseClient.auth.signInWithOAuth({
             provider: 'google',
             options: {
                 redirectTo: redirectUrl,
@@ -338,9 +340,9 @@ async function signOut() {
         currentUser = null;
         authInitialized = false;
         
-        if (supabase && !currentUser?.isGuest) {
+        if (window.supabaseClient && !currentUser?.isGuest) {
             // Sign out from Supabase
-            await supabase.auth.signOut();
+            await window.supabaseClient.auth.signOut();
         }
         
         // Clear all possible authentication storage

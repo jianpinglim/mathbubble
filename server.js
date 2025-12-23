@@ -36,7 +36,7 @@ app.use((req, res, next) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com",
         "img-src 'self' data: https: blob:",
-        "connect-src 'self' https://*.supabase.co https://tmgssumdikxtgcdaykyu.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com",
+        "connect-src 'self' https://*.supabase.co https://tmgssumdikxtgcdaykyu.supabase.co https://accounts.google.com https://oauth2.googleapis.com https://*.googleapis.com https://cdn.jsdelivr.net",
         "frame-src 'self' https://accounts.google.com"
     ].join('; '));
     
