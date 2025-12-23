@@ -68,7 +68,6 @@ async function fetchQuestions() {
         const trainingQuestions = sessionStorage.getItem('trainingQuestions');
         
         if (quizMode === 'training' && trainingQuestions) {
-            console.log('🎯 Loading training mode questions...');
             const questions = JSON.parse(trainingQuestions);
             
             // Clear sessionStorage after loading
@@ -83,7 +82,6 @@ async function fetchQuestions() {
         }
         
         // Regular practice mode - fetch smart randomized questions
-        console.log('🏃‍♂️ Loading practice mode questions...');
         const config = getSupabaseConfig();
         const currentUser = window.authManager?.getCurrentUser();
         
@@ -91,7 +89,6 @@ async function fetchQuestions() {
         
         if (currentUser && !currentUser.isGuest) {
             // For authenticated users - use smart question selection
-            console.log('🧠 Using smart question selection for authenticated user');
             
             const response = await fetch(`${config.url}/rest/v1/rpc/get_practice_questions`, {
                 method: 'POST',
@@ -114,7 +111,6 @@ async function fetchQuestions() {
             
         } else {
             // For guest users - use random selection
-            console.log('👤 Using random selection for guest user');
             
             // Get total count first
             const countResponse = await fetch(`${config.url}/rest/v1/questions?select=count`, {
@@ -152,8 +148,6 @@ async function fetchQuestions() {
             throw new Error('No questions available for practice');
         }
 
-        console.log(`🎯 Selected ${questions.length} questions for practice mode`);
-
         // Parse options (they're stored as JSON strings)
         return questions.map(q => ({
             ...q,
@@ -179,7 +173,6 @@ async function initQuiz() {
         // Add training mode indicator if applicable
         const isTrainingMode = sessionStorage.getItem('quizMode') === 'training';
         if (isTrainingMode) {
-            console.log('🎯 Training Mode: Focusing on weak topics');
             addTrainingModeIndicator();
         }
         
@@ -310,17 +303,18 @@ async function trackUserAttempt(questionId, topic, selectedIndex, isCorrect, tim
     try {
         const currentUser = window.authManager.getCurrentUser();
         if (!currentUser || currentUser.isGuest) {
-            console.log('📊 Skipping attempt tracking for guest user');
             return;
         }
 
-        const supabaseConfig = getSupabaseConfig();
-        if (!supabaseConfig.url || !supabaseConfig.key) {
-            console.warn('⚠️ Supabase config not available for attempt tracking');
+        // Reuse the shared Supabase client (do not create multiple GoTrueClient instances)
+        if (!window.supabaseClient) {
+            await window.authManager.initializeAuth();
+        }
+        if (!window.supabaseClient) {
             return;
         }
 
-        const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+        const supabase = window.supabaseClient;
         
         // Always track the attempt in user_attempts table
         const { data, error } = await supabase
@@ -335,20 +329,15 @@ async function trackUserAttempt(questionId, topic, selectedIndex, isCorrect, tim
             });
 
         if (error) {
-            console.error('❌ Error tracking user attempt:', error);
             return;
-        } else {
-            console.log('📊 User attempt tracked successfully');
         }
 
         // Handle question mastery tracking for practice mode only
         const isTrainingMode = sessionStorage.getItem('trainingMode') === 'true';
         if (!isTrainingMode) {
-            console.log('🎯 Updating question mastery for practice mode');
-            
             if (isCorrect) {
                 // Question answered correctly - mark as mastered
-                const { error: masteryError } = await supabase
+                await supabase
                     .from('user_mastered_questions')
                     .upsert({
                         user_id: currentUser.id,
@@ -358,29 +347,18 @@ async function trackUserAttempt(questionId, topic, selectedIndex, isCorrect, tim
                     }, {
                         onConflict: 'user_id,question_id'
                     });
-
-                if (masteryError) {
-                    console.error('❌ Error marking question as mastered:', masteryError);
-                } else {
-                    console.log('✅ Question marked as mastered');
-                }
             } else {
                 // Question answered incorrectly - increment wrong attempts
-                const { data: existing, error: fetchError } = await supabase
+                const { data: existing } = await supabase
                     .from('user_mastered_questions')
                     .select('wrong_attempts')
                     .eq('user_id', currentUser.id)
                     .eq('question_id', questionId)
-                    .single();
-
-                if (fetchError && fetchError.code !== 'PGRST116') {
-                    console.error('❌ Error fetching mastery data:', fetchError);
-                    return;
-                }
+                    .maybeSingle();
 
                 const wrongAttempts = existing ? existing.wrong_attempts + 1 : 1;
                 
-                const { error: masteryError } = await supabase
+                await supabase
                     .from('user_mastered_questions')
                     .upsert({
                         user_id: currentUser.id,
@@ -389,16 +367,10 @@ async function trackUserAttempt(questionId, topic, selectedIndex, isCorrect, tim
                     }, {
                         onConflict: 'user_id,question_id'
                     });
-
-                if (masteryError) {
-                    console.error('❌ Error updating wrong attempts:', masteryError);
-                } else {
-                    console.log(`📊 Wrong attempts updated: ${wrongAttempts}`);
-                }
             }
         }
     } catch (error) {
-        console.error('❌ Error in trackUserAttempt:', error);
+        // Silent fail for attempt tracking
     }
 }
 

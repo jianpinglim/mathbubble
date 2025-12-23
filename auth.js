@@ -16,9 +16,7 @@ function getRedirectUrl() {
     }
     
     // For production, use the current domain (supports Railway, Render, etc.)
-    const redirectUrl = `${window.location.origin}/`;
-    console.log('🌐 Using redirect URL:', redirectUrl);
-    return redirectUrl;
+    return `${window.location.origin}/`;
 }
 
 // Load config from server in production
@@ -29,9 +27,8 @@ async function loadConfig() {
             const config = await response.json();
             SUPABASE_URL = config.supabaseUrl;
             SUPABASE_ANON_KEY = config.supabaseKey;
-            console.log('✅ Production config loaded from server');
         } catch (error) {
-            console.warn('⚠️ Failed to load production config, using defaults');
+            console.warn('Failed to load production config, using defaults');
         }
     }
 }
@@ -41,25 +38,23 @@ async function initializeSupabase() {
     await loadConfig();
     try {
         if (window.supabase) {
+            // Check if client already exists
+            if (window.supabaseClient) {
+                return;
+            }
+            
             // Validate configuration values
             if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-                console.error('❌ Missing Supabase configuration');
+                console.error('Missing Supabase configuration');
                 return;
             }
             
             if (!SUPABASE_URL.startsWith('https://') || SUPABASE_ANON_KEY.length < 100) {
-                console.error('❌ Invalid Supabase configuration format');
-                console.log('URL:', SUPABASE_URL?.substring(0, 30) + '...');
-                console.log('Key length:', SUPABASE_ANON_KEY?.length);
+                console.error('Invalid Supabase configuration format');
                 return;
             }
             
-            console.log('🔧 Creating Supabase client...');
-            console.log('URL:', SUPABASE_URL);
-            console.log('Key length:', SUPABASE_ANON_KEY.length);
-            
-            // Create client with minimal configuration - DO NOT add custom headers
-            // The headers issue causes the "Invalid value" error in production
+            // Create client with minimal configuration
             window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: {
                     autoRefreshToken: true,
@@ -67,19 +62,12 @@ async function initializeSupabase() {
                     detectSessionInUrl: true,
                     flowType: 'pkce'
                 }
-                // Do NOT add global.headers - this causes issues with OAuth callback
             });
-            console.log('✅ Supabase client initialized');
         } else {
-            console.error('❌ Supabase library not loaded');
+            console.error('Supabase library not loaded');
         }
     } catch (error) {
-        console.error('❌ Supabase client initialization failed:', error);
-        console.error('Error details:', {
-            name: error.name,
-            message: error.message,
-            stack: error.stack?.substring(0, 500)
-        });
+        console.error('Supabase client initialization failed:', error.message);
     }
 }
 
@@ -87,55 +75,72 @@ async function initializeSupabase() {
 let currentUser = null;
 let authInitialized = false;
 let isRedirecting = false;
+let authInitPromise = null;
+let authListenerAttached = false;
+
+// Ensure a row exists in `users` for the signed-in user (needed for FK constraints)
+async function ensureUserRow(sessionUser) {
+    try {
+        if (!window.supabaseClient || !sessionUser?.id) return;
+
+        const payload = {
+            id: sessionUser.id,
+            email: sessionUser.email
+        };
+
+        await window.supabaseClient
+            .from('users')
+            .upsert(payload, { onConflict: 'id' });
+    } catch (error) {
+        // Silent fail - not critical for UI
+    }
+}
 
 // Check if we're on a login page
 function isLoginPage() {
     const path = window.location.pathname;
-    return path === '/login';
+    return path === '/login' || path === '/login.html';
 }
 
 // Check if we're on home page
 function isHomePage() {
     const path = window.location.pathname;
-    return path === '/';
+    return path === '/' || path === '/index.html';
 }
 
 // Check if we're on quiz page
 function isQuizPage() {
     const path = window.location.pathname;
-    return path === '/quiz';
+    return path === '/quiz' || path === '/quiz_page.html';
 }
 
 // Initialize authentication
 async function initializeAuth() {
     if (authInitialized || isRedirecting) {
-        console.log('Auth already initialized or redirecting');
         return currentUser;
     }
+
+    if (authInitPromise) {
+        return authInitPromise;
+    }
     
-    // Check if user just signed out - don't auto-authenticate
+    // Check if user just signed out
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('signed_out') === 'true') {
-        console.log('🚪 User just signed out - skipping auto-authentication');
         authInitialized = true;
         return null;
     }
-    
-    console.log('🔍 Initializing authentication...');
-    
-    // Initialize Supabase with config
-    await initializeSupabase();
-    
-    try {
+
+    authInitPromise = (async () => {
+        await initializeSupabase();
+
+        try {
         // Check for guest user first
         const guestUser = localStorage.getItem('guestUser');
         if (guestUser) {
             currentUser = JSON.parse(guestUser);
-            console.log('👤 Found guest user:', currentUser.name);
             
-            // If on login page, allow access (user wants to switch accounts)
             if (isLoginPage()) {
-                console.log('📝 Guest user on login page, allowing login access...');
                 authInitialized = true;
                 return null;
             }
@@ -146,18 +151,12 @@ async function initializeAuth() {
 
         // Check Supabase auth if available
         if (window.supabaseClient) {
-            console.log('🔍 Checking Supabase session...');
-            console.log('🔗 Current URL:', window.location.href);
-            console.log('🔗 URL hash:', window.location.hash);
-            
-            // Set up auth state change listener BEFORE getting session
-            window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                console.log('🔄 Auth state changed:', event, session?.user?.email);
-                
-                // Check if user just signed out - don't re-authenticate
+            // Set up auth state change listener
+            if (!authListenerAttached) {
+                authListenerAttached = true;
+                window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
                 const urlParams = new URLSearchParams(window.location.search);
                 if (urlParams.get('signed_out') === 'true' && event === 'SIGNED_IN') {
-                    console.log('🚫 Ignoring sign-in event - user just signed out');
                     return;
                 }
                 
@@ -169,53 +168,125 @@ async function initializeAuth() {
                         avatar: session.user.user_metadata?.avatar_url || '👤',
                         isGuest: false
                     };
+
+                    ensureUserRow(session.user).catch(() => {});
                     
-                    console.log('✅ User signed in:', currentUser.email);
-                    
-                    // Clean up URL hash tokens after successful authentication
                     if (window.location.hash && window.location.hash.includes('access_token')) {
-                        console.log('🧹 Cleaning up URL tokens...');
                         window.history.replaceState(null, '', window.location.pathname);
                     }
                     
-                    // Update UI if on home page
                     if (isHomePage()) {
                         updateAuthUI();
                     }
                     
                 } else if (event === 'SIGNED_OUT') {
                     currentUser = null;
-                    console.log('🚪 User signed out');
                 }
-            });
+                });
+            }
             
-            // Check if we're in an OAuth callback (either hash or code parameter)
+            // Check if we're in an OAuth callback
             const hasOAuthCallback = (window.location.hash && window.location.hash.includes('access_token')) || 
                                      (window.location.search && window.location.search.includes('code='));
             
             if (hasOAuthCallback) {
-                console.log('⏳ OAuth callback detected in URL, waiting for auth state change...');
-                // Wait longer for the auth state listener to process the callback
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                
-                // Check if user was set by the listener
+                // Exchange OAuth code for session
+                try {
+                    const url = new URL(window.location.href);
+                    const code = url.searchParams.get('code');
+
+                    if (code) {
+                        const exchangeTimeoutMs = 30000;
+                        const exchangeResult = await Promise.race([
+                            window.supabaseClient.auth.exchangeCodeForSession(code),
+                            new Promise(resolve => setTimeout(() => resolve({ data: null, error: { message: 'timeout' } }), exchangeTimeoutMs))
+                        ]);
+                        const { data, error } = exchangeResult || {};
+
+                        if (!error && data?.session?.user) {
+                            await ensureUserRow(data.session.user);
+                            currentUser = {
+                                id: data.session.user.id,
+                                email: data.session.user.email,
+                                name: data.session.user.user_metadata?.full_name || data.session.user.email?.split('@')[0] || 'User',
+                                avatar: data.session.user.user_metadata?.avatar_url || '👤',
+                                isGuest: false
+                            };
+
+                            window.history.replaceState(null, '', window.location.pathname);
+
+                            if (isHomePage()) {
+                                updateAuthUI();
+                            }
+                            authInitialized = true;
+                            return currentUser;
+                        }
+                    }
+                } catch (exchangeError) {
+                    // Continue to fallback
+                }
+
+                // Fallback: allow the auth listener a moment
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
                 if (currentUser) {
-                    console.log('✅ User authenticated via OAuth callback');
                     authInitialized = true;
                     return currentUser;
-                } else {
-                    console.warn('⚠️ OAuth callback processed but no user set');
+                }
+
+                try {
+                    const sessionTimeoutMs = 20000;
+                    const sessionResult = await Promise.race([
+                        window.supabaseClient.auth.getSession(),
+                        new Promise(resolve => setTimeout(() => resolve({ data: { session: null } }), sessionTimeoutMs))
+                    ]);
+                    const { data: { session } = {} } = sessionResult || {};
+
+                    if (session?.user) {
+                        await ensureUserRow(session.user);
+                        currentUser = {
+                            id: session.user.id,
+                            email: session.user.email,
+                            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                            avatar: session.user.user_metadata?.avatar_url || '👤',
+                            isGuest: false
+                        };
+                        window.history.replaceState(null, '', window.location.pathname);
+                        if (isHomePage()) {
+                            updateAuthUI();
+                        }
+                        authInitialized = true;
+                        return currentUser;
+                    }
+
+                    // Final fallback
+                    const { data: userData } = await window.supabaseClient.auth.getUser();
+                    if (userData?.user) {
+                        await ensureUserRow(userData.user);
+                        currentUser = {
+                            id: userData.user.id,
+                            email: userData.user.email,
+                            name: userData.user.user_metadata?.full_name || userData.user.email?.split('@')[0] || 'User',
+                            avatar: userData.user.user_metadata?.avatar_url || '👤',
+                            isGuest: false
+                        };
+                        window.history.replaceState(null, '', window.location.pathname);
+                        if (isHomePage()) {
+                            updateAuthUI();
+                        }
+                        authInitialized = true;
+                        return currentUser;
+                    }
+                } catch (sessionAfterExchangeError) {
+                    // Continue to unauthenticated
                 }
             } else {
-                // Only call getSession if there's NO hash (normal page load)
+                // Normal page load - check session
                 try {
-                    console.log('🔍 Attempting to get current session...');
-                    const { data: { session }, error } = await window.supabaseClient.auth.getSession();
+                    const { data: { session } } = await window.supabaseClient.auth.getSession();
                     
-                    if (error) {
-                        console.warn('⚠️ Error getting session:', error.message);
-                    } else if (session?.user) {
-                        console.log('✅ Found authenticated user:', session.user.email);
+                    if (session?.user) {
+                        await ensureUserRow(session.user);
                         currentUser = {
                             id: session.user.id,
                             email: session.user.email,
@@ -228,42 +299,38 @@ async function initializeAuth() {
                         return currentUser;
                     }
                 } catch (sessionError) {
-                    console.error('❌ Session retrieval failed:', sessionError);
+                    console.error('Session retrieval failed:', sessionError.message);
                 }
             }
-        } else {
-            console.warn('⚠️ Supabase client not available, continuing with guest mode');
         }
 
         return handleUnauthenticated();
-    } catch (error) {
-        console.error('❌ Auth initialization error:', error);
-        return handleUnauthenticated();
+        } catch (error) {
+            return handleUnauthenticated();
+        }
+    })();
+
+    try {
+        return await authInitPromise;
+    } finally {
+        authInitPromise = null;
     }
 }
 
 // Handle unauthenticated users
 function handleUnauthenticated() {
-    console.log('🚫 No authenticated user found');
-    
-    // If on quiz page without authentication, redirect to login
     if (isQuizPage() && !isRedirecting) {
-        console.log('🔄 Redirecting unauthenticated user to login...');
         isRedirecting = true;
         window.location.href = '/login';
         return null;
     }
     
-    // If on login page, just stay here
     if (isLoginPage()) {
-        console.log('📝 Ready for login');
         authInitialized = true;
         return null;
     }
     
-    // If on home page, allow access as guest
     if (isHomePage()) {
-        console.log('🏠 Allowing home page access without auth');
         authInitialized = true;
         return null;
     }
@@ -273,20 +340,19 @@ function handleUnauthenticated() {
 
 // Sign in with Google
 async function signInWithGoogle() {
-    console.log('🔄 Attempting Google sign in...');
+    if (!window.supabaseClient) {
+        await initializeSupabase();
+    }
     
-    if (!supabase) {
-        console.error('❌ Supabase client not available');
+    if (!window.supabaseClient) {
         alert('Authentication service unavailable. Please try again later.');
         return;
     }
 
     try {
         const redirectUrl = getRedirectUrl();
-        console.log('🌐 Current origin:', window.location.origin);
-        console.log('🎯 Target redirect URL:', redirectUrl);
         
-        const { data, error } = await window.supabaseClient.auth.signInWithOAuth({
+        const { error } = await window.supabaseClient.auth.signInWithOAuth({
             provider: 'google',
             options: {
                 redirectTo: redirectUrl,
@@ -298,21 +364,15 @@ async function signInWithGoogle() {
         });
 
         if (error) {
-            console.error('❌ Google sign in error:', error);
             alert('Failed to sign in with Google: ' + error.message);
-        } else {
-            console.log('✅ Google sign in initiated', data);
         }
     } catch (error) {
-        console.error('❌ Google sign in error:', error);
         alert('Failed to sign in with Google. Please try again.');
     }
 }
 
 // Continue as guest
 function continueAsGuest() {
-    console.log('👤 Continuing as guest...');
-    
     const guestUser = {
         id: 'guest_' + Date.now(),
         email: 'guest@mathbubble.com',
@@ -324,52 +384,38 @@ function continueAsGuest() {
     localStorage.setItem('guestUser', JSON.stringify(guestUser));
     currentUser = guestUser;
     
-    console.log('✅ Guest user created');
-    
-    // Redirect to home
     isRedirecting = true;
     window.location.href = '/';
 }
 
 // Sign out function
 async function signOut() {
-    console.log('🚪 Signing out...');
-    
     try {
-        // Clear current user immediately to prevent re-authentication
         currentUser = null;
         authInitialized = false;
         
         if (window.supabaseClient && !currentUser?.isGuest) {
-            // Sign out from Supabase
             await window.supabaseClient.auth.signOut();
         }
         
-        // Clear all possible authentication storage
         localStorage.removeItem('guestUser');
         sessionStorage.clear();
         
-        // Clear Supabase session storage specifically
         const supabaseKeys = Object.keys(localStorage).filter(key => 
             key.startsWith('sb-') || key.includes('supabase')
         );
         supabaseKeys.forEach(key => localStorage.removeItem(key));
         
-        // Clear any cookies (if any)
         document.cookie.split(";").forEach(cookie => {
             const eqPos = cookie.indexOf("=");
             const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
             document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
         });
         
-        console.log('✅ Signed out successfully - all data cleared');
-        
-        // Force redirect to login without allowing re-authentication
         isRedirecting = true;
         window.location.href = '/login?signed_out=true';
         
     } catch (error) {
-        console.error('❌ Sign out error:', error);
         
         // Force clear everything even if there's an error
         currentUser = null;
@@ -424,82 +470,62 @@ function showLoginForm() {
 
 // Set up event listeners when DOM is loaded
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('📄 DOM loaded, setting up auth...');
-    
-    // Prevent multiple initializations
     if (authInitialized && !isRedirecting) {
-        console.log('⚠️ Auth already initialized');
         return;
     }
     
-    // Small delay to ensure everything is ready
+    // Wire login-related buttons immediately
+    const googleSignInBtn = document.getElementById('google-login-btn');
+    const guestSignInBtn = document.getElementById('guest-login-btn');
+    const goHomeBtn = document.getElementById('go-home-btn');
+    const signOutSwitchBtn = document.getElementById('sign-out-and-switch-btn');
+
+    if (googleSignInBtn) {
+        googleSignInBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            signInWithGoogle();
+        });
+    }
+
+    if (guestSignInBtn) {
+        guestSignInBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            continueAsGuest();
+        });
+    }
+
+    if (goHomeBtn) {
+        goHomeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = '/';
+        });
+    }
+
+    if (signOutSwitchBtn) {
+        signOutSwitchBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            signOut();
+        });
+    }
+
     await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Initialize auth
-    await initializeAuth();
 
-    // Set up login page buttons
+    const authInitTimeoutMs = 5000;
+    await Promise.race([
+        initializeAuth(),
+        new Promise(resolve => setTimeout(resolve, authInitTimeoutMs))
+    ]);
+
     if (isLoginPage()) {
-        console.log('📝 Setting up login page event listeners...');
-        
-        // Check if user is already authenticated (exclude guests)
-        setTimeout(() => {
-            const currentUser = window.authManager?.getCurrentUser();
-            if (currentUser && !currentUser.isGuest) {
-                showAlreadySignedInState(currentUser);
-            } else {
-                showLoginForm();
-            }
-        }, 100);
-        
-        const googleSignInBtn = document.getElementById('google-login-btn');
-        const guestSignInBtn = document.getElementById('guest-login-btn');
-        const goHomeBtn = document.getElementById('go-home-btn');
-        const signOutSwitchBtn = document.getElementById('sign-out-and-switch-btn');
-
-        if (googleSignInBtn) {
-            console.log('✅ Found Google sign in button');
-            googleSignInBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                console.log('🖱️ Google button clicked');
-                signInWithGoogle();
-            });
+        const currentUser = window.authManager?.getCurrentUser();
+        if (currentUser && !currentUser.isGuest) {
+            showAlreadySignedInState(currentUser);
         } else {
-            console.warn('⚠️ Google sign in button not found');
-        }
-
-        if (guestSignInBtn) {
-            console.log('✅ Found Guest sign in button');
-            guestSignInBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                console.log('🖱️ Guest button clicked');
-                continueAsGuest();
-            });
-        } else {
-            console.warn('⚠️ Guest sign in button not found');
-        }
-        
-        if (goHomeBtn) {
-            goHomeBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                console.log('🏠 Go home clicked');
-                window.location.href = '/';
-            });
-        }
-        
-        if (signOutSwitchBtn) {
-            signOutSwitchBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                console.log('🔄 Sign out and switch clicked');
-                signOut();
-            });
+            showLoginForm();
         }
     }
 
-    // Set up quiz page elements
     if (isQuizPage()) {
-        console.log('🎯 Setting up quiz page event listeners...');
-        
         const signOutBtn = document.getElementById('sign-out-btn');
         if (signOutBtn) {
             signOutBtn.addEventListener('click', function(e) {
@@ -508,7 +534,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             });
         }
 
-        // Set up user profile menu toggle
         const userProfile = document.getElementById('user-profile');
         const userMenu = document.getElementById('user-menu');
         
@@ -518,7 +543,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 userMenu.classList.toggle('show');
             });
 
-            // Close menu when clicking outside
             document.addEventListener('click', function() {
                 userMenu.classList.remove('show');
             });
@@ -535,5 +559,3 @@ window.authManager = {
     getCurrentUser: () => currentUser,
     getSupabaseConfig: () => ({ url: SUPABASE_URL, key: SUPABASE_ANON_KEY })
 };
-
-console.log('🔐 Auth manager loaded and ready!');

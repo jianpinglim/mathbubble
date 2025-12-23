@@ -8,6 +8,28 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <!-- Supabase JavaScript Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Prevent Chrome extension errors from breaking the app
+        window.addEventListener('error', function(e) {
+            if (e.message && e.message.includes('chrome-extension://')) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.warn('Chrome extension error ignored:', e.message);
+                return false;
+            }
+        }, true);
+
+        // Prevent unhandled promise rejection errors from extensions
+        window.addEventListener('unhandledrejection', function(e) {
+            const reason = e.reason ? e.reason.toString() : '';
+            if (reason.includes('chrome-extension://') || reason.includes('message channel closed')) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.warn('Chrome extension promise rejection ignored:', reason);
+                return false;
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="login-container">

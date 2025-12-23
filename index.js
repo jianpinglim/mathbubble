@@ -24,17 +24,31 @@ function getSupabaseConfig() {
     return null;
 }
 
+// Track last rendered identity so we can re-render when auth state changes
+let lastRenderedUserKey = null;
+
 // Initialize page
 async function initializePage() {
-    console.log('🏠 Initializing home page...');
-    
     try {
-        // Wait for auth to be ready
+        if (window.authManager?.initializeAuth) {
+            await Promise.race([
+                window.authManager.initializeAuth(),
+                new Promise(resolve => setTimeout(resolve, 4000))
+            ]);
+        }
+
         const currentUser = window.authManager?.getCurrentUser();
+
+        const userKey = currentUser
+            ? (currentUser.isGuest ? 'guest' : `user:${currentUser.id}`)
+            : 'none';
+
+        if (userKey === lastRenderedUserKey) {
+            return;
+        }
+        lastRenderedUserKey = userKey;
         
         if (!currentUser) {
-            console.log('� No user found, showing guest mode...');
-            // Show guest user interface
             updateUserProfile({
                 name: 'Guest User',
                 email: 'guest@mathbubble.com',
@@ -42,7 +56,6 @@ async function initializePage() {
                 isGuest: true
             });
             
-            // Show default stats
             updateStatsDisplay({
                 totalQuestions: 0,
                 accuracyRate: 0,
@@ -52,16 +65,11 @@ async function initializePage() {
             return;
         }
         
-        console.log('👤 Current user:', currentUser.name);
-        
-        // Update user profile
         updateUserProfile(currentUser);
-        
-        // Load user stats
         await loadUserStats(currentUser);
         
     } catch (error) {
-        console.error('❌ Error initializing page:', error);
+        // Silent fail
     }
 }
 
@@ -122,11 +130,7 @@ function updateUserProfile(user) {
 
 // Load user statistics
 async function loadUserStats(user) {
-    console.log('📊 Loading user stats...');
-    
-    // For guest users, show default stats
     if (user.isGuest) {
-        console.log('👤 Guest user - showing default stats');
         updateStatsDisplay({
             totalQuestions: 0,
             accuracyRate: 0,
@@ -137,43 +141,37 @@ async function loadUserStats(user) {
     }
     
     try {
-        const supabaseConfig = getSupabaseConfig();
-        if (!supabaseConfig?.url || !supabaseConfig?.key) {
-            console.warn('⚠️ Supabase config not available');
+        if (!window.supabaseClient) {
             return;
         }
         
-        const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+        const supabase = window.supabaseClient;
         
-        // Get user attempts
         const { data: attempts, error: attemptsError } = await supabase
             .from('user_attempts')
             .select('*')
             .eq('user_id', user.id);
             
         if (attemptsError) {
-            console.error('❌ Error fetching attempts:', attemptsError);
             return;
         }
         
-        // Calculate stats
         const stats = calculateUserStats(attempts || []);
         
-        // Get user info from users table
-        const { data: userData, error: userError } = await supabase
+        const { data: userData } = await supabase
             .from('users')
             .select('streak')
             .eq('id', user.id)
             .single();
-            
-        if (!userError && userData) {
-            stats.currentStreak = userData.streak || 0;
+        
+        if (userData) {
+            stats.currentStreak = Math.max(userData.streak || 0, stats.currentStreak);
         }
         
         updateStatsDisplay(stats);
         
     } catch (error) {
-        console.error('❌ Error loading user stats:', error);
+        // Stats loading failed silently
     }
 }
 
@@ -219,9 +217,29 @@ function calculateUserStats(attempts) {
     return {
         totalQuestions,
         accuracyRate,
-        currentStreak: 0, // Will be updated from user table
+        currentStreak: calculateStreakFromAttempts(attempts),
         weakestTopic
     };
+}
+
+// Calculate current streak from attempts (consecutive correct answers, most recent first)
+function calculateStreakFromAttempts(attempts) {
+    if (!attempts || attempts.length === 0) return 0;
+    
+    // Sort by attempt_time descending (most recent first)
+    const sorted = [...attempts].sort((a, b) => 
+        new Date(b.attempt_time) - new Date(a.attempt_time)
+    );
+    
+    let streak = 0;
+    for (const attempt of sorted) {
+        if (attempt.is_correct) {
+            streak++;
+        } else {
+            break; // Streak broken
+        }
+    }
+    return streak;
 }
 
 // Update stats display
@@ -251,11 +269,8 @@ async function getWeakTopicQuestions(userId) {
         const weakTopics = await getWeakestTopics(user);
         
         if (weakTopics.length === 0) {
-            console.log('📊 No weak topics found for user');
             return [];
         }
-        
-        console.log('🎯 Found weak topics:', weakTopics);
         
         // Now fetch randomized questions from database for these weak topics
         const supabaseConfig = getSupabaseConfig();
@@ -274,17 +289,12 @@ async function getWeakTopicQuestions(userId) {
             .limit(50);  // Get more questions to choose from
             
         if (error) {
-            console.error('❌ Database error fetching training questions:', error);
             throw error;
         }
         
         if (!questions || questions.length === 0) {
-            console.log('❌ No questions found in database for weak topics:', weakTopics);
             return [];
         }
-        
-        console.log(`📚 Total questions loaded from database: ${questions.length}`);
-        console.log(`📋 Sample topics from database:`, questions.slice(0, 5).map(q => q.topic));
         
         // Process questions to ensure correct format
         const processedQuestions = questions.map(q => ({
@@ -301,20 +311,12 @@ async function getWeakTopicQuestions(userId) {
             .sort(() => Math.random() - 0.5)  // Second shuffle for extra randomness
             .slice(0, 5);  // Take 5 random questions
         
-        console.log(`🔍 Questions per weak topic:`);
-        weakTopics.forEach(topic => {
-            const count = doubleShuffled.filter(q => q.topic === topic).length;
-            console.log(`  ${topic}: ${count} questions selected`);
-        });
-        
         // Shuffle and return final selection
         const finalSelection = doubleShuffled.sort(() => Math.random() - 0.5);
         
-        console.log(`📊 Found ${finalSelection.length} randomized questions for weak topics: ${weakTopics.join(', ')}`);
         return finalSelection;
         
     } catch (error) {
-        console.error('❌ Error in getWeakTopicQuestions:', error);
         return [];
     }
 }
@@ -367,32 +369,21 @@ async function getWeakestTopics(user) {
             .slice(0, 5) // Top 5 weakest topics
             .map(item => item.topic);
             
-        console.log('📊 Topic stats:', Object.entries(topicStats).map(([topic, stats]) => ({
-            topic,
-            accuracy: Math.round((stats.correct / stats.total) * 100),
-            attempts: stats.total
-        })));
-        console.log('🎯 Weak topics found:', weakTopics);
-            
         return weakTopics;
         
     } catch (error) {
-        console.error('❌ Error getting weakest topics:', error);
         return [];
     }
 }
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 Home page DOM loaded');
-    
     // Wait for auth manager to be ready
     setTimeout(initializePage, 500);
     
     // Training mode button
     if (trainingModeBtn) {
         trainingModeBtn.addEventListener('click', async function() {
-            console.log('🎯 Training mode clicked');
             loadingEl.style.display = 'flex';
             
             try {
@@ -408,7 +399,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // Get weak topic questions from database
                 const weakQuestions = await getWeakTopicQuestions(currentUser.id);
                 
                 if (weakQuestions.length === 0) {
@@ -417,17 +407,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // Store questions in sessionStorage for quiz page
                 sessionStorage.setItem('trainingQuestions', JSON.stringify(weakQuestions));
                 sessionStorage.setItem('quizMode', 'training');
                 
-                console.log(`🎯 Starting training with ${weakQuestions.length} weak topic questions`);
-                
-                // Navigate to quiz page
                 window.location.href = '/quiz';
                 
             } catch (error) {
-                console.error('❌ Error starting training mode:', error);
                 alert('Failed to start training mode. Please try again.');
                 loadingEl.style.display = 'none';
             }
@@ -437,7 +422,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Practice mode button
     if (practiceModeBtn) {
         practiceModeBtn.addEventListener('click', function() {
-            console.log('🏃‍♂️ Practice mode clicked');
             window.location.href = '/quiz';
         });
     }
@@ -446,13 +430,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const homeSignInBtn = document.getElementById('home-signin-btn');
     if (homeSignInBtn) {
         homeSignInBtn.addEventListener('click', function() {
-            console.log('🔑 Home sign-in clicked');
-            
-            // Clear guest session before going to login
             localStorage.removeItem('guestUser');
-            console.log('🧹 Cleared guest session');
             
-            // Reset auth state
             if (window.authManager) {
                 window.authManager.getCurrentUser = () => null;
             }
@@ -472,7 +451,6 @@ document.addEventListener('DOMContentLoaded', function() {
             userMenu.classList.toggle('show');
         });
 
-        // Close menu when clicking outside
         document.addEventListener('click', function() {
             userMenu.classList.remove('show');
         });
@@ -481,12 +459,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (signOutBtn) {
         signOutBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('🚪 Home sign-out clicked');
             if (window.authManager && window.authManager.signOut) {
                 window.authManager.signOut();
             }
         });
     }
 });
-
-console.log('🏠 Home page script loaded!');
