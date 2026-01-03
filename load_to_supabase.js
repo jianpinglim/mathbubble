@@ -17,16 +17,20 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 // Resolve JSONL path
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const datasetPath = path.join(__dirname, "data/training_dataset_clean.jsonl");
+const datasetPath = path.join(__dirname, "data/emath_dataset.jsonl");
 
 if (!fs.existsSync(datasetPath)) {
   console.error(`❌ File not found: ${datasetPath}`);
   process.exit(1);
 }
 
-// Load JSONL file
-const lines = fs.readFileSync(datasetPath, "utf-8")
+// Load JSONL file (strip BOM if present)
+const rawContent = fs.readFileSync(datasetPath, "utf-8")
+  .replace(/^\uFEFF/, ''); // Remove UTF-8 BOM if present
+
+const lines = rawContent
   .split("\n")
+  .map(line => line.trim()) // Remove trailing \r and whitespace
   .filter(Boolean);
 
 console.log(`📘 Inserting ${lines.length} questions via REST API...`);
@@ -35,29 +39,21 @@ for (const line of lines) {
   try {
     const data = JSON.parse(line);
     
-    // Extract topic from input field
-    const topicMatch = data.input.match(/Topic: ([^\n]+)/);
-    const topic = topicMatch ? topicMatch[1] : 'Unknown';
-    
-    // Extract question from input field
-    const questionMatch = data.input.match(/Question: (.+)/s);
-    const question = questionMatch ? questionMatch[1].trim() : 'No question found';
-    
-    // Parse the output JSON
-    const output = JSON.parse(data.output);
-    
     const response = await fetch(`${SUPABASE_URL}/rest/v1/questions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Prefer': 'return=minimal'
       },
       body: JSON.stringify({
-        topic: topic,
-        question: question,
-        options: JSON.stringify(output.options || []),
-        correct_index: output.correct_index || 0
+        topic: data.topic || 'Unknown',
+        question: data.question || 'No question found',
+        options: data.options || [],
+        correct_index: data.correct_index || 0,
+        level: data.level || null,
+        subject: data.subject || null
       })
     });
 
@@ -65,7 +61,7 @@ for (const line of lines) {
       throw new Error(`HTTP ${response.status}: ${await response.text()}`);
     }
     
-    console.log(`✅ Inserted: ${topic} - ${question.substring(0, 50)}...`);
+    console.log(`✅ Inserted: ${data.topic} - ${data.question.substring(0, 50)}...`);
   } catch (err) {
     console.error("⚠️ Failed to insert line:", err.message);
   }

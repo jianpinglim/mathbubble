@@ -208,7 +208,7 @@ function calculateUserStats(attempts) {
     
     Object.entries(topicStats).forEach(([topic, stats]) => {
         const accuracy = (stats.correct / stats.total) * 100;
-        if (accuracy < lowestAccuracy && stats.total >= 3) { // Need at least 3 attempts to be considered
+        if (accuracy < lowestAccuracy && stats.total >= 3) {
             lowestAccuracy = accuracy;
             weakestTopic = topic;
         }

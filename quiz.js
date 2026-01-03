@@ -81,77 +81,87 @@ async function fetchQuestions() {
             }));
         }
         
-        // Regular practice mode - fetch smart randomized questions
+        // Regular practice mode - fetch random questions (emath only)
         const config = getSupabaseConfig();
         const currentUser = window.authManager?.getCurrentUser();
         
         let questions;
+        let masteredQuestionIds = [];
         
+        // For authenticated users, get their mastered questions to exclude
         if (currentUser && !currentUser.isGuest) {
-            // For authenticated users - use smart question selection
-            
-            const response = await fetch(`${config.url}/rest/v1/rpc/get_practice_questions`, {
-                method: 'POST',
-                headers: {
-                    'apikey': config.key,
-                    'Authorization': `Bearer ${config.key}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    user_uuid: currentUser.id,
-                    question_limit: QUIZ_CONFIG.questionsPerQuiz
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            questions = await response.json();
-            
-        } else {
-            // For guest users - use random selection
-            
-            // Get total count first
-            const countResponse = await fetch(`${config.url}/rest/v1/questions?select=count`, {
-                headers: {
-                    'apikey': config.key,
-                    'Authorization': `Bearer ${config.key}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'count=exact'
+            try {
+                const masteredResponse = await fetch(
+                    `${config.url}/rest/v1/user_mastered_questions?select=question_id&user_id=eq.${currentUser.id}&mastered_at=not.is.null`,
+                    {
+                        headers: {
+                            'apikey': config.key,
+                            'Authorization': `Bearer ${config.key}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                
+                if (masteredResponse.ok) {
+                    const masteredData = await masteredResponse.json();
+                    masteredQuestionIds = masteredData.map(m => m.question_id);
                 }
-            });
-            
-            const countData = await countResponse.json();
-            const totalQuestions = countData.length || 0;
-            
-            // Generate random offset
-            const maxOffset = Math.max(0, totalQuestions - QUIZ_CONFIG.questionsPerQuiz);
-            const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
-            
-            const response = await fetch(`${config.url}/rest/v1/questions?select=*&limit=${QUIZ_CONFIG.questionsPerQuiz}&offset=${randomOffset}`, {
-                headers: {
-                    'apikey': config.key,
-                    'Authorization': `Bearer ${config.key}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            } catch (err) {
+                console.warn('Could not fetch mastered questions:', err);
             }
-
-            questions = await response.json();
         }
+        
+        // Fetch all emath questions
+        const response = await fetch(`${config.url}/rest/v1/questions?select=*&subject=eq.emath`, {
+            headers: {
+                'apikey': config.key,
+                'Authorization': `Bearer ${config.key}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        let allQuestions = await response.json();
+        
+        // Filter out mastered questions for authenticated users
+        if (masteredQuestionIds.length > 0) {
+            allQuestions = allQuestions.filter(q => !masteredQuestionIds.includes(q.id));
+            console.log(`Filtered out ${masteredQuestionIds.length} mastered questions. ${allQuestions.length} remaining.`);
+        }
+        
+        // If all questions are mastered, reset and use all questions
+        if (allQuestions.length === 0) {
+            console.log('All questions mastered! Resetting to include all questions.');
+            const resetResponse = await fetch(`${config.url}/rest/v1/questions?select=*&subject=eq.emath`, {
+                headers: {
+                    'apikey': config.key,
+                    'Authorization': `Bearer ${config.key}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            allQuestions = await resetResponse.json();
+        }
+        
+        // Shuffle array using Fisher-Yates algorithm
+        for (let i = allQuestions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
+        }
+        
+        // Take the first N questions after shuffling
+        questions = allQuestions.slice(0, QUIZ_CONFIG.questionsPerQuiz);
         
         if (!questions || questions.length === 0) {
             throw new Error('No questions available for practice');
         }
 
-        // Parse options (they're stored as JSON strings)
+        // Parse options if needed (jsonb columns are already parsed, but strings need parsing)
         return questions.map(q => ({
             ...q,
-            options: JSON.parse(q.options)
+            options: Array.isArray(q.options) ? q.options : JSON.parse(q.options)
         }));
     } catch (error) {
         console.error('Error fetching questions:', error);
@@ -210,8 +220,8 @@ function displayQuestion() {
     // Update topic chip
     topicChipEl.textContent = question.topic;
     
-    // Update question text (secure)
-    questionTextEl.textContent = question.question;
+    // Update question text (use innerHTML for MathJax rendering)
+    questionTextEl.innerHTML = question.question;
     
     // Clear and populate options
     optionsContainerEl.innerHTML = '';
@@ -248,7 +258,7 @@ function createOptionElement(optionText, index) {
     
     const textEl = document.createElement('div');
     textEl.className = 'option-text';
-    textEl.textContent = optionText; // Secure: prevents XSS
+    textEl.innerHTML = optionText; // Use innerHTML for MathJax rendering
     
     contentEl.appendChild(letterEl);
     contentEl.appendChild(textEl);
@@ -522,12 +532,11 @@ function showResults() {
     showResultsScreen();
 }
 
-// Show game over screen
 function showGameOver() {
-    const questionsAnswered = currentQuestionIndex + 1;
+    const totalQuestions = currentQuestions.length;
     const correctAnswers = calculateCurrentScore();
     
-    gameOverScoreEl.textContent = `${correctAnswers}/${questionsAnswered}`;
+    gameOverScoreEl.textContent = `${correctAnswers}/${totalQuestions}`;
     showGameOverScreen();
 }
 
