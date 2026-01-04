@@ -112,7 +112,7 @@ async function fetchQuestions() {
         }
         
         // Fetch all emath questions
-        const response = await fetch(`${config.url}/rest/v1/questions?select=*&subject=eq.emath`, {
+        const response = await fetch(`${config.url}/rest/v1/questions?select=*`, {
             headers: {
                 'apikey': config.key,
                 'Authorization': `Bearer ${config.key}`,
@@ -135,7 +135,7 @@ async function fetchQuestions() {
         // If all questions are mastered, reset and use all questions
         if (allQuestions.length === 0) {
             console.log('All questions mastered! Resetting to include all questions.');
-            const resetResponse = await fetch(`${config.url}/rest/v1/questions?select=*&subject=eq.emath`, {
+            const resetResponse = await fetch(`${config.url}/rest/v1/questions?select=*`, {
                 headers: {
                     'apikey': config.key,
                     'Authorization': `Bearer ${config.key}`,
