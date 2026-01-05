@@ -10,154 +10,160 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-content">
-            <div class="logo">
-                <a href="/" class="logo-link">
-                    <span class="logo-icon">🧮</span>
-                    <span class="logo-text">MathBubble</span>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header" id="sidebar-header">
+                <div class="user-badge">
+                    <span class="user-badge-icon" id="sidebar-avatar">NA</span>
+                </div>
+                <div class="sidebar-title">
+                    <span class="user-first-name" id="sidebar-user-name">User's</span> Sidekick
+                </div>
+                <span class="dropdown-icon">▾</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-tab="discover">
+                    <span class="nav-icon">✨</span>
+                    <span class="nav-label">Discover</span>
                 </a>
-            </div>
-            
-            <!-- User Profile -->
-            <div class="user-section">
-                <!-- Guest Sign In Button -->
-                <div class="guest-section" id="guest-section" style="display: none;">
-                    <button id="home-signin-btn" class="signin-button">
-                        <span class="signin-icon">🔑</span>
-                        Sign In
-                    </button>
-                </div>
-                
-                <!-- Authenticated User Profile -->
-                <div class="user-profile" id="user-profile" style="display: none;">
-                    <img id="user-avatar" class="user-avatar" src="" alt="User">
-                    <span id="user-name" class="user-name">Loading...</span>
-                    <span class="dropdown-arrow">▼</span>
-                </div>
-                
-                <!-- User Menu Dropdown -->
-                <div class="user-menu" id="user-menu">
-                    <div class="user-info">
-                        <img id="menu-user-avatar" class="menu-avatar" src="" alt="User">
-                        <div class="menu-user-details">
-                            <div id="menu-user-name" class="menu-name">User Name</div>
-                            <div id="menu-user-email" class="menu-email">user@email.com</div>
-                        </div>
-                    </div>
-                    <div class="menu-divider"></div>
-                    <button id="sign-out-btn" class="menu-item sign-out-btn">
-                        <span class="menu-icon">🚪</span>
-                        Sign Out
-                    </button>
-                </div>
-            </div>
-        </div>
-    </header>
+                <a href="#" class="nav-item disabled" data-tab="arcade">
+                    <span class="nav-icon">🎮</span>
+                    <span class="nav-label">Arcade</span>
+                    <span class="coming-soon-badge">COMING SOON</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="analytics">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Analytics</span>
+                </a>
+            </nav>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="welcome-section">
-            <h1 class="welcome-title">Welcome to MathBubble!</h1>
-            <p class="welcome-subtitle">Choose your learning adventure</p>
-        </div>
+            <!-- User Menu (hidden by default) -->
+            <div class="sidebar-user-menu" id="sidebar-user-menu">
+                <div class="user-info">
+                    <img id="menu-user-avatar" class="menu-avatar" src="" alt="User">
+                    <div class="menu-user-details">
+                        <div id="menu-user-name" class="menu-name">User Name</div>
+                        <div id="menu-user-email" class="menu-email">user@email.com</div>
+                    </div>
+                </div>
+                <div class="menu-divider"></div>
+                <button id="sign-out-btn" class="menu-item sign-out-btn">
+                    <span class="menu-icon">🚪</span>
+                    Sign Out
+                </button>
+            </div>
+        </aside>
 
-        <div class="mode-selection">
-            <!-- Grind Mode -->
-            <div class="mode-card training-mode">
-                <div class="mode-icon">🎯</div>
-                <div class="mode-content">
-                    <h2 class="mode-title">Grind Mode</h2>
-                    <p class="mode-description">Practice questions from your weakest topics. Focus on areas that need improvement based on your performance history.</p>
-                    <div class="mode-features">
-                        <div class="feature">
-                            <span class="feature-icon">📊</span>
-                            <span>Personalized weak areas</span>
-                        </div>
-                        <div class="feature">
-                            <span class="feature-icon">🎯</span>
-                            <span>Targeted practice</span>
-                        </div>
-                        <div class="feature">
-                            <span class="feature-icon">📈</span>
-                            <span>Skill improvement</span>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Discover Tab -->
+            <div class="tab-content active" id="discover-tab">
+                <!-- For You Section -->
+                <section class="content-section">
+                    <div class="section-header">
+                        <h2 class="section-title">For You</h2>
+                        <span class="beta-badge">BETA</span>
+                    </div>
+                    <p class="section-description">These topics are curated based on your analytics that require more practice.</p>
+                    <div class="section-tags">
+                        <span class="tag">🎯 Targeted practice</span>
+                        <span class="tag">📊 Personalised for weak areas</span>
+                    </div>
+                    
+                    <div class="cards-grid" id="for-you-cards">
+                        <!-- Cards will be dynamically generated -->
+                        <div class="topic-card" id="no-weak-topics-card" style="display: none;">
+                            <div class="card-gradient gradient-default"></div>
+                            <div class="card-info">
+                                <h3 class="card-title">No weak areas yet!</h3>
+                                <p class="card-subtitle">Start practicing to see personalized recommendations</p>
+                            </div>
                         </div>
                     </div>
-                    <button id="training-mode-btn" class="mode-button training-button">
-                        Start Grinding
-                        <span class="button-arrow">→</span>
-                    </button>
+                </section>
+
+                <!-- Practice Section -->
+                <section class="content-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Practice</h2>
+                    </div>
+                    <p class="section-description">Take on random questions from all topics. Test your overall knowledge and compete for high scores with the lives system.</p>
+                    <div class="section-tags">
+                        <span class="tag">❤️ Lives system</span>
+                        <span class="tag">🏆 High scores</span>
+                    </div>
+                    
+                    <div class="cards-grid" id="practice-cards">
+                        <!-- Practice cards will be dynamically generated from database -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- Arcade Tab (Coming Soon) -->
+            <div class="tab-content" id="arcade-tab">
+                <div class="coming-soon-container">
+                    <span class="coming-soon-icon">🎮</span>
+                    <h2>Arcade Mode</h2>
+                    <p>Coming Soon! Stay tuned for exciting math challenges.</p>
                 </div>
             </div>
 
-            <div class="mode-card practice-mode">
-                <div class="mode-icon">🏃‍♂️</div>
-                <div class="mode-content">
-                    <h2 class="mode-title">Practice Mode</h2>
-                    <p class="mode-description">Take on random questions from all topics. Test your overall knowledge and compete for high scores with the lives system.</p>
-                    <div class="mode-features">
-                        <div class="feature">
-                            <span class="feature-icon">🎲</span>
-                            <span>Random questions</span>
+            <!-- Analytics Tab -->
+            <div class="tab-content" id="analytics-tab">
+                <section class="content-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Your Progress</h2>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="total-questions">0</div>
+                                <div class="stat-label">Questions Answered</div>
+                            </div>
                         </div>
-                        <div class="feature">
-                            <span class="feature-icon">❤️</span>
-                            <span>Lives system</span>
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="accuracy-rate">0%</div>
+                                <div class="stat-label">Accuracy Rate</div>
+                            </div>
                         </div>
-                        <div class="feature">
-                            <span class="feature-icon">🏆</span>
-                            <span>High scores</span>
+                        <div class="stat-card">
+                            <div class="stat-icon">🔥</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="current-streak">0</div>
+                                <div class="stat-label">Current Streak</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🎯</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="weakest-topic">-</div>
+                                <div class="stat-label">Weakest Topic</div>
+                            </div>
                         </div>
                     </div>
-                    <button id="practice-mode-btn" class="mode-button practice-button">
-                        Start Practice
-                        <span class="button-arrow">→</span>
-                    </button>
-                </div>
+                </section>
             </div>
-        </div>
-
-        <!-- Stats Section -->
-        <div class="stats-section">
-            <h3 class="stats-title">Your Progress</h3>
-            <div class="stats-cards">
-                <div class="stat-card">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-info">
-                        <div class="stat-value" id="total-questions">0</div>
-                        <div class="stat-label">Questions Answered</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">✅</div>
-                    <div class="stat-info">
-                        <div class="stat-value" id="accuracy-rate">0%</div>
-                        <div class="stat-label">Accuracy Rate</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🔥</div>
-                    <div class="stat-info">
-                        <div class="stat-value" id="current-streak">0</div>
-                        <div class="stat-label">Current Streak</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🎯</div>
-                    <div class="stat-info">
-                        <div class="stat-value" id="weakest-topic">-</div>
-                        <div class="stat-label">Weakest Topic</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
+        </main>
+    </div>
 
     <!-- Loading State -->
     <div id="loading" class="loading-overlay" style="display: none;">
         <div class="loading-spinner"></div>
         <p>Loading your progress...</p>
+    </div>
+
+    <!-- Guest Login Prompt -->
+    <div class="guest-prompt" id="guest-prompt" style="display: none;">
+        <button id="home-signin-btn" class="signin-button">
+            <span class="signin-icon">🔑</span>
+            Sign In to track progress
+        </button>
     </div>
 
     <script src="auth.js"></script>

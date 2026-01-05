@@ -1,20 +1,34 @@
 // DOM elements
-const trainingModeBtn = document.getElementById('training-mode-btn');
-const practiceModeBtn = document.getElementById('practice-mode-btn');
 const loadingEl = document.getElementById('loading');
-
-// User elements
-const userAvatarEl = document.getElementById('user-avatar');
-const userNameEl = document.getElementById('user-name');
-const menuUserAvatarEl = document.getElementById('menu-user-avatar');
-const menuUserNameEl = document.getElementById('menu-user-name');
-const menuUserEmailEl = document.getElementById('menu-user-email');
 
 // Stats elements
 const totalQuestionsEl = document.getElementById('total-questions');
 const accuracyRateEl = document.getElementById('accuracy-rate');
 const currentStreakEl = document.getElementById('current-streak');
 const weakestTopicEl = document.getElementById('weakest-topic');
+
+// Sidebar elements
+const sidebarAvatar = document.getElementById('sidebar-avatar');
+const sidebarUserName = document.getElementById('sidebar-user-name');
+const sidebarHeader = document.getElementById('sidebar-header');
+const sidebarUserMenu = document.getElementById('sidebar-user-menu');
+const menuUserAvatarEl = document.getElementById('menu-user-avatar');
+const menuUserNameEl = document.getElementById('menu-user-name');
+const menuUserEmailEl = document.getElementById('menu-user-email');
+
+// Card containers
+const forYouCardsContainer = document.getElementById('for-you-cards');
+const practiceCardsContainer = document.getElementById('practice-cards');
+const noWeakTopicsCard = document.getElementById('no-weak-topics-card');
+
+// Gradient classes for cards
+const gradientClasses = [
+    'gradient-cyan-pink',
+    'gradient-purple-pink',
+    'gradient-teal',
+    'gradient-orange',
+    'gradient-blue'
+];
 
 // Get Supabase config from auth.js
 function getSupabaseConfig() {
@@ -49,8 +63,8 @@ async function initializePage() {
         lastRenderedUserKey = userKey;
         
         if (!currentUser) {
-            updateUserProfile({
-                name: 'Guest User',
+            updateSidebarProfile({
+                name: 'Guest',
                 email: 'guest@mathbubble.com',
                 avatar: '👤',
                 isGuest: true
@@ -62,50 +76,53 @@ async function initializePage() {
                 currentStreak: 0,
                 weakestTopic: 'Sign in to track progress!'
             });
+            
+            showGuestPrompt();
+            loadPracticeSubjects();
+            showNoWeakTopics();
             return;
         }
         
-        updateUserProfile(currentUser);
+        updateSidebarProfile(currentUser);
         await loadUserStats(currentUser);
+        await loadForYouCards(currentUser);
+        await loadPracticeSubjects();
+        
+        if (!currentUser.isGuest) {
+            hideGuestPrompt();
+        } else {
+            showGuestPrompt();
+        }
         
     } catch (error) {
-        // Silent fail
+        console.error('Error initializing page:', error);
     }
 }
 
-// Update user profile display
-function updateUserProfile(user) {
-    const avatar = user.avatar || '👤';
+// Update sidebar profile display
+function updateSidebarProfile(user) {
     const name = user.name || 'User';
     const email = user.email || 'guest@mathbubble.com';
+    const avatar = user.avatar || '👤';
     
-    const guestSection = document.getElementById('guest-section');
-    const userProfile = document.getElementById('user-profile');
+    // Extract first name and make possessive
+    const firstName = name.split(' ')[0];
+    const possessiveName = firstName.endsWith('s') ? `${firstName}'` : `${firstName}'s`;
     
-    if (user.isGuest && name === 'Guest User') {
-        // Show guest sign-in button
-        if (guestSection) guestSection.style.display = 'flex';
-        if (userProfile) userProfile.style.display = 'none';
-        return;
+    if (sidebarUserName) {
+        sidebarUserName.textContent = possessiveName;
     }
     
-    // Show authenticated user profile
-    if (guestSection) guestSection.style.display = 'none';
-    if (userProfile) userProfile.style.display = 'flex';
-    
-    // Update header profile
-    if (userAvatarEl) {
+    // Set avatar initials
+    if (sidebarAvatar) {
         if (avatar.startsWith('http')) {
-            userAvatarEl.src = avatar;
-            userAvatarEl.style.display = 'block';
+            // If it's a URL, we could show image, but for now show initials
+            const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+            sidebarAvatar.textContent = initials || 'NA';
         } else {
-            userAvatarEl.style.display = 'none';
-            userAvatarEl.insertAdjacentHTML('afterend', `<span class="avatar-emoji">${avatar}</span>`);
+            const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+            sidebarAvatar.textContent = initials || 'NA';
         }
-    }
-    
-    if (userNameEl) {
-        userNameEl.textContent = name;
     }
     
     // Update menu profile
@@ -115,7 +132,6 @@ function updateUserProfile(user) {
             menuUserAvatarEl.style.display = 'block';
         } else {
             menuUserAvatarEl.style.display = 'none';
-            menuUserAvatarEl.insertAdjacentHTML('afterend', `<span class="avatar-emoji">${avatar}</span>`);
         }
     }
     
@@ -125,6 +141,266 @@ function updateUserProfile(user) {
     
     if (menuUserEmailEl) {
         menuUserEmailEl.textContent = email;
+    }
+}
+
+// Show/hide guest prompt
+function showGuestPrompt() {
+    const guestPrompt = document.getElementById('guest-prompt');
+    if (guestPrompt) guestPrompt.style.display = 'block';
+}
+
+function hideGuestPrompt() {
+    const guestPrompt = document.getElementById('guest-prompt');
+    if (guestPrompt) guestPrompt.style.display = 'none';
+}
+
+// Show no weak topics message
+function showNoWeakTopics() {
+    if (noWeakTopicsCard) {
+        noWeakTopicsCard.style.display = 'block';
+    }
+}
+
+// Load For You cards (weak topics)
+async function loadForYouCards(user) {
+    if (!forYouCardsContainer) return;
+    
+    // Clear existing cards (except the no-weak-topics placeholder)
+    const existingCards = forYouCardsContainer.querySelectorAll('.topic-card:not(#no-weak-topics-card)');
+    existingCards.forEach(card => card.remove());
+    
+    if (user.isGuest) {
+        showNoWeakTopics();
+        return;
+    }
+    
+    try {
+        const weakTopicsData = await getWeakestTopicsWithDetails(user);
+        
+        if (weakTopicsData.length === 0) {
+            showNoWeakTopics();
+            return;
+        }
+        
+        // Hide no-weak-topics card
+        if (noWeakTopicsCard) {
+            noWeakTopicsCard.style.display = 'none';
+        }
+        
+        // Create cards for each weak topic
+        weakTopicsData.forEach((topicData, index) => {
+            // Determine subject from the topic data if available
+            const subjectDisplay = topicData.subject ? formatSubjectName(topicData.subject) : 'E. Math';
+            const card = createTopicCard(
+                topicData.topic,
+                'Secondary 4',
+                subjectDisplay,
+                gradientClasses[index % gradientClasses.length],
+                () => startTopicPractice(topicData.topic, topicData.subject)
+            );
+            forYouCardsContainer.appendChild(card);
+        });
+        
+    } catch (error) {
+        console.error('Error loading For You cards:', error);
+        showNoWeakTopics();
+    }
+}
+
+// Load practice subjects from database
+async function loadPracticeSubjects() {
+    if (!practiceCardsContainer) return;
+    
+    // Clear existing cards
+    practiceCardsContainer.innerHTML = '';
+    
+    try {
+        const supabaseConfig = getSupabaseConfig();
+        if (!supabaseConfig?.url || !supabaseConfig?.key) {
+            // Add default E. Math card
+            addDefaultPracticeCard();
+            return;
+        }
+        
+        const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+        
+        // Get distinct subjects from questions
+        const { data: subjects, error } = await supabase
+            .from('questions')
+            .select('subject')
+            .not('subject', 'is', null);
+        
+        if (error) {
+            console.error('Error fetching subjects:', error);
+            addDefaultPracticeCard();
+            return;
+        }
+        
+        // Get unique subjects
+        const uniqueSubjects = [...new Set(subjects.map(s => s.subject).filter(Boolean))];
+        
+        if (uniqueSubjects.length === 0) {
+            addDefaultPracticeCard();
+            return;
+        }
+        
+        // Create cards for each subject
+        uniqueSubjects.forEach((subject, index) => {
+            const displayName = formatSubjectName(subject);
+            const card = createTopicCard(
+                displayName,
+                'Secondary 4',
+                null,
+                gradientClasses[index % gradientClasses.length],
+                () => startSubjectPractice(subject)
+            );
+            practiceCardsContainer.appendChild(card);
+        });
+        
+    } catch (error) {
+        console.error('Error loading practice subjects:', error);
+        addDefaultPracticeCard();
+    }
+}
+
+// Add default practice card
+function addDefaultPracticeCard() {
+    const card = createTopicCard(
+        'E. Math',
+        'Secondary 4',
+        null,
+        'gradient-teal',
+        () => window.location.href = '/quiz'
+    );
+    practiceCardsContainer.appendChild(card);
+}
+
+// Format subject name for display
+function formatSubjectName(subject) {
+    if (!subject) return 'Math';
+    
+    // Handle common abbreviations
+    const nameMap = {
+        'emath': 'E. Math',
+        'amath': 'A. Math',
+        'e_math': 'E. Math',
+        'a_math': 'A. Math',
+        'elementary_math': 'E. Math',
+        'additional_math': 'A. Math'
+    };
+    
+    const lower = subject.toLowerCase().replace(/\s+/g, '_');
+    if (nameMap[lower]) return nameMap[lower];
+    
+    // Capitalize first letter of each word
+    return subject.split(/[\s_]+/).map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+}
+
+// Create a topic card element
+function createTopicCard(title, subtitle, subject, gradientClass, onClick) {
+    const card = document.createElement('div');
+    card.className = 'topic-card';
+    card.innerHTML = `
+        <div class="card-gradient ${gradientClass}"></div>
+        <div class="card-info">
+            <h3 class="card-title">${title}</h3>
+            <p class="card-subtitle">${subtitle}</p>
+            ${subject ? `<p class="card-subject">${subject}</p>` : ''}
+        </div>
+    `;
+    card.addEventListener('click', onClick);
+    return card;
+}
+
+// Start practice for a specific topic (For You section)
+async function startTopicPractice(topic, subject = null) {
+    loadingEl.style.display = 'flex';
+    
+    try {
+        const currentUser = window.authManager?.getCurrentUser();
+        if (!currentUser) {
+            window.location.href = '/login';
+            return;
+        }
+        
+        const questions = await getQuestionsForTopic(topic, subject);
+        
+        if (questions.length === 0) {
+            alert(`No questions found for ${topic}. Try another topic!`);
+            loadingEl.style.display = 'none';
+            return;
+        }
+        
+        sessionStorage.setItem('trainingQuestions', JSON.stringify(questions));
+        sessionStorage.setItem('quizMode', 'training');
+        sessionStorage.setItem('currentTopic', topic);
+        
+        window.location.href = '/quiz';
+        
+    } catch (error) {
+        console.error('Error starting topic practice:', error);
+        alert('Failed to start practice. Please try again.');
+        loadingEl.style.display = 'none';
+    }
+}
+
+// Start practice for a specific subject
+function startSubjectPractice(subject) {
+    sessionStorage.setItem('practiceSubject', subject);
+    sessionStorage.setItem('quizMode', 'practice');
+    window.location.href = '/quiz';
+}
+
+// Get questions for a specific topic
+async function getQuestionsForTopic(topic, subject = null) {
+    try {
+        const supabaseConfig = getSupabaseConfig();
+        if (!supabaseConfig?.url || !supabaseConfig?.key) {
+            return [];
+        }
+        
+        const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+        
+        let query = supabase
+            .from('questions')
+            .select('*')
+            .eq('topic', topic);
+        
+        // Filter by subject if provided
+        if (subject) {
+            query = query.eq('subject', subject);
+        }
+        
+        const { data: questions, error } = await query.limit(20);
+            
+        if (error) {
+            throw error;
+        }
+        
+        if (!questions || questions.length === 0) {
+            return [];
+        }
+        
+        // Process and shuffle questions
+        const processedQuestions = questions.map(q => ({
+            id: q.id,
+            topic: q.topic,
+            subject: q.subject,
+            question: q.question,
+            options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
+            correct_index: q.correct_index
+        }));
+        
+        return processedQuestions
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 5);
+        
+    } catch (error) {
+        console.error('Error getting questions for topic:', error);
+        return [];
     }
 }
 
@@ -186,9 +462,25 @@ function calculateUserStats(attempts) {
         };
     }
     
-    const totalQuestions = attempts.length;
-    const correctAnswers = attempts.filter(attempt => attempt.is_correct).length;
-    const accuracyRate = Math.round((correctAnswers / totalQuestions) * 100);
+    // Count unique questions answered (by question_id)
+    const uniqueQuestionIds = new Set(attempts.map(a => a.question_id).filter(Boolean));
+    const totalQuestions = uniqueQuestionIds.size;
+    
+    // For accuracy, use unique questions - a question is "correct" if user got it right at least once
+    const questionResults = {};
+    attempts.forEach(attempt => {
+        if (!attempt.question_id) return;
+        if (!questionResults[attempt.question_id]) {
+            questionResults[attempt.question_id] = false;
+        }
+        // Mark as correct if any attempt was correct
+        if (attempt.is_correct) {
+            questionResults[attempt.question_id] = true;
+        }
+    });
+    
+    const correctAnswers = Object.values(questionResults).filter(correct => correct).length;
+    const accuracyRate = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
     
     // Calculate topic accuracy
     const topicStats = {};
@@ -321,8 +613,8 @@ async function getWeakTopicQuestions(userId) {
     }
 }
 
-// Get user's weakest topics for training mode
-async function getWeakestTopics(user) {
+// Get user's weakest topics with full details including subject
+async function getWeakestTopicsWithDetails(user) {
     if (user.isGuest) {
         return [];
     }
@@ -335,20 +627,46 @@ async function getWeakestTopics(user) {
         
         const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
         
-        const { data: attempts, error } = await supabase
+        // Get user's attempts with topic info
+        const { data: attempts, error: attemptsError } = await supabase
             .from('user_attempts')
-            .select('topic, is_correct')
+            .select('topic, is_correct, question_id')
             .eq('user_id', user.id);
             
-        if (error || !attempts) {
+        if (attemptsError || !attempts || attempts.length === 0) {
             return [];
+        }
+        
+        // Get questions to map topics to subjects
+        const questionIds = [...new Set(attempts.map(a => a.question_id).filter(Boolean))];
+        let topicSubjectMap = {};
+        
+        if (questionIds.length > 0) {
+            const { data: questions, error: questionsError } = await supabase
+                .from('questions')
+                .select('topic, subject')
+                .in('id', questionIds);
+            
+            if (!questionsError && questions) {
+                questions.forEach(q => {
+                    if (q.topic && !topicSubjectMap[q.topic]) {
+                        topicSubjectMap[q.topic] = q.subject;
+                    }
+                });
+            }
         }
         
         // Calculate topic accuracy
         const topicStats = {};
         attempts.forEach(attempt => {
+            if (!attempt.topic) return;
+            
             if (!topicStats[attempt.topic]) {
-                topicStats[attempt.topic] = { correct: 0, total: 0 };
+                topicStats[attempt.topic] = { 
+                    correct: 0, 
+                    total: 0,
+                    subject: topicSubjectMap[attempt.topic] || null
+                };
             }
             topicStats[attempt.topic].total++;
             if (attempt.is_correct) {
@@ -356,24 +674,63 @@ async function getWeakestTopics(user) {
             }
         });
         
-        // Sort topics by accuracy (lowest first) and filter those with enough attempts
+        // Sort topics by accuracy (lowest first) - include topics with any attempts
+        // Lower threshold to show more weak areas
         const weakTopics = Object.entries(topicStats)
-            .filter(([_, stats]) => stats.total >= 2) // Need at least 2 attempts (more inclusive)
+            .filter(([_, stats]) => stats.total >= 1) // Show topics with at least 1 attempt
             .map(([topic, stats]) => ({
                 topic,
                 accuracy: (stats.correct / stats.total) * 100,
-                attempts: stats.total
+                attempts: stats.total,
+                subject: stats.subject
             }))
-            .filter(item => item.accuracy < 80) // Only topics with less than 80% accuracy
-            .sort((a, b) => a.accuracy - b.accuracy)
-            .slice(0, 5) // Top 5 weakest topics
-            .map(item => item.topic);
+            .filter(item => item.accuracy < 90) // Topics with less than 90% accuracy
+            .sort((a, b) => a.accuracy - b.accuracy) // Sort by accuracy, lowest first
+            .slice(0, 5); // Top 5 weakest topics
             
         return weakTopics;
         
     } catch (error) {
+        console.error('Error getting weakest topics:', error);
         return [];
     }
+}
+
+// Get user's weakest topics for training mode (returns topic names only)
+async function getWeakestTopics(user) {
+    const topicsWithDetails = await getWeakestTopicsWithDetails(user);
+    return topicsWithDetails.map(item => item.topic);
+}
+
+// Setup tab navigation
+function setupTabNavigation() {
+    const navItems = document.querySelectorAll('.nav-item');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    navItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Skip if disabled
+            if (this.classList.contains('disabled')) {
+                return;
+            }
+            
+            const targetTab = this.dataset.tab;
+            
+            // Update active nav item
+            navItems.forEach(nav => nav.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update active tab content
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+                if (content.id === `${targetTab}-tab`) {
+                    content.classList.add('active');
+                }
+            });
+        });
+    });
 }
 
 // Event listeners
@@ -381,52 +738,37 @@ document.addEventListener('DOMContentLoaded', function() {
     // Wait for auth manager to be ready
     setTimeout(initializePage, 500);
     
-    // Training mode button
-    if (trainingModeBtn) {
-        trainingModeBtn.addEventListener('click', async function() {
-            loadingEl.style.display = 'flex';
-            
-            try {
-                const currentUser = window.authManager?.getCurrentUser();
-                if (!currentUser) {
-                    window.location.href = '/login';
-                    return;
-                }
-                
-                if (currentUser.isGuest) {
-                    alert('Training mode requires an account to track your weak areas. Try Practice Mode or sign in with Google!');
-                    loadingEl.style.display = 'none';
-                    return;
-                }
-                
-                const weakQuestions = await getWeakTopicQuestions(currentUser.id);
-                
-                if (weakQuestions.length === 0) {
-                    alert('No weak areas found yet! Try Practice Mode first to build your learning profile.');
-                    loadingEl.style.display = 'none';
-                    return;
-                }
-                
-                sessionStorage.setItem('trainingQuestions', JSON.stringify(weakQuestions));
-                sessionStorage.setItem('quizMode', 'training');
-                
-                window.location.href = '/quiz';
-                
-            } catch (error) {
-                alert('Failed to start training mode. Please try again.');
-                loadingEl.style.display = 'none';
+    // Setup tab navigation
+    setupTabNavigation();
+    
+    // Sidebar header click (user menu toggle)
+    if (sidebarHeader && sidebarUserMenu) {
+        sidebarHeader.addEventListener('click', function(e) {
+            e.stopPropagation();
+            sidebarUserMenu.classList.toggle('show');
+        });
+
+        document.addEventListener('click', function() {
+            sidebarUserMenu.classList.remove('show');
+        });
+        
+        sidebarUserMenu.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+    
+    // Sign out button
+    const signOutBtn = document.getElementById('sign-out-btn');
+    if (signOutBtn) {
+        signOutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (window.authManager && window.authManager.signOut) {
+                window.authManager.signOut();
             }
         });
     }
     
-    // Practice mode button
-    if (practiceModeBtn) {
-        practiceModeBtn.addEventListener('click', function() {
-            window.location.href = '/quiz';
-        });
-    }
-    
-    // Home sign-in button
+    // Home sign-in button (guest prompt)
     const homeSignInBtn = document.getElementById('home-signin-btn');
     if (homeSignInBtn) {
         homeSignInBtn.addEventListener('click', function() {
@@ -437,31 +779,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             window.location.href = '/login';
-        });
-    }
-    
-    // Set up user profile menu toggle and sign-out (similar to quiz page)
-    const userProfile = document.getElementById('user-profile');
-    const userMenu = document.getElementById('user-menu');
-    const signOutBtn = document.getElementById('sign-out-btn');
-    
-    if (userProfile && userMenu) {
-        userProfile.addEventListener('click', function(e) {
-            e.stopPropagation();
-            userMenu.classList.toggle('show');
-        });
-
-        document.addEventListener('click', function() {
-            userMenu.classList.remove('show');
-        });
-    }
-    
-    if (signOutBtn) {
-        signOutBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (window.authManager && window.authManager.signOut) {
-                window.authManager.signOut();
-            }
         });
     }
 });

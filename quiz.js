@@ -66,6 +66,7 @@ async function fetchQuestions() {
         // Check if we're in training mode with pre-loaded questions
         const quizMode = sessionStorage.getItem('quizMode');
         const trainingQuestions = sessionStorage.getItem('trainingQuestions');
+        const practiceSubject = sessionStorage.getItem('practiceSubject');
         
         if (quizMode === 'training' && trainingQuestions) {
             const questions = JSON.parse(trainingQuestions);
@@ -81,7 +82,7 @@ async function fetchQuestions() {
             }));
         }
         
-        // Regular practice mode - fetch random questions (emath only)
+        // Regular practice mode - fetch questions filtered by subject if specified
         const config = getSupabaseConfig();
         const currentUser = window.authManager?.getCurrentUser();
         
@@ -111,8 +112,17 @@ async function fetchQuestions() {
             }
         }
         
-        // Fetch all emath questions
-        const response = await fetch(`${config.url}/rest/v1/questions?select=*`, {
+        // Build URL with subject filter if specified
+        let questionsUrl = `${config.url}/rest/v1/questions?select=*`;
+        if (practiceSubject) {
+            questionsUrl += `&subject=eq.${encodeURIComponent(practiceSubject)}`;
+            // Clear the subject from session storage after using it
+            sessionStorage.removeItem('practiceSubject');
+            sessionStorage.removeItem('quizMode');
+        }
+        
+        // Fetch questions (filtered by subject if specified)
+        const response = await fetch(questionsUrl, {
             headers: {
                 'apikey': config.key,
                 'Authorization': `Bearer ${config.key}`,
@@ -132,10 +142,10 @@ async function fetchQuestions() {
             console.log(`Filtered out ${masteredQuestionIds.length} mastered questions. ${allQuestions.length} remaining.`);
         }
         
-        // If all questions are mastered, reset and use all questions
+        // If all questions are mastered, reset and use all questions (still filtered by subject)
         if (allQuestions.length === 0) {
             console.log('All questions mastered! Resetting to include all questions.');
-            const resetResponse = await fetch(`${config.url}/rest/v1/questions?select=*`, {
+            const resetResponse = await fetch(questionsUrl, {
                 headers: {
                     'apikey': config.key,
                     'Authorization': `Bearer ${config.key}`,
