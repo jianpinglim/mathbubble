@@ -354,7 +354,7 @@ function startSubjectPractice(subject) {
     window.location.href = '/quiz';
 }
 
-// Get questions for a specific topic
+// Get questions for a specific topic - prioritize unanswered questions
 async function getQuestionsForTopic(topic, subject = null) {
     try {
         const supabaseConfig = getSupabaseConfig();
@@ -363,7 +363,9 @@ async function getQuestionsForTopic(topic, subject = null) {
         }
         
         const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+        const currentUser = window.authManager?.getCurrentUser();
         
+        // Get all questions for this topic
         let query = supabase
             .from('questions')
             .select('*')
@@ -374,18 +376,49 @@ async function getQuestionsForTopic(topic, subject = null) {
             query = query.eq('subject', subject);
         }
         
-        const { data: questions, error } = await query.limit(20);
+        const { data: allQuestions, error } = await query;
             
         if (error) {
             throw error;
         }
         
-        if (!questions || questions.length === 0) {
+        if (!allQuestions || allQuestions.length === 0) {
             return [];
         }
         
-        // Process and shuffle questions
-        const processedQuestions = questions.map(q => ({
+        // Get questions the user has already answered (if logged in)
+        let answeredQuestionIds = [];
+        if (currentUser && !currentUser.isGuest) {
+            const { data: attempts } = await supabase
+                .from('user_attempts')
+                .select('question_id')
+                .eq('user_id', currentUser.id);
+            
+            if (attempts) {
+                answeredQuestionIds = [...new Set(attempts.map(a => a.question_id))];
+            }
+        }
+        
+        // Separate into unanswered and answered questions
+        const unansweredQuestions = allQuestions.filter(q => !answeredQuestionIds.includes(q.id));
+        const answeredQuestions = allQuestions.filter(q => answeredQuestionIds.includes(q.id));
+        
+        // Prioritize unanswered questions, then fill with answered if needed
+        let selectedQuestions = [];
+        
+        // Shuffle unanswered questions and take up to 5
+        const shuffledUnanswered = unansweredQuestions.sort(() => Math.random() - 0.5);
+        selectedQuestions = shuffledUnanswered.slice(0, 5);
+        
+        // If we don't have 5 yet, fill with answered questions
+        if (selectedQuestions.length < 5 && answeredQuestions.length > 0) {
+            const shuffledAnswered = answeredQuestions.sort(() => Math.random() - 0.5);
+            const remaining = 5 - selectedQuestions.length;
+            selectedQuestions = [...selectedQuestions, ...shuffledAnswered.slice(0, remaining)];
+        }
+        
+        // Process questions
+        const processedQuestions = selectedQuestions.map(q => ({
             id: q.id,
             topic: q.topic,
             subject: q.subject,
@@ -394,9 +427,8 @@ async function getQuestionsForTopic(topic, subject = null) {
             correct_index: q.correct_index
         }));
         
-        return processedQuestions
-            .sort(() => Math.random() - 0.5)
-            .slice(0, 5);
+        // Final shuffle
+        return processedQuestions.sort(() => Math.random() - 0.5);
         
     } catch (error) {
         console.error('Error getting questions for topic:', error);
@@ -627,11 +659,12 @@ async function getWeakestTopicsWithDetails(user) {
         
         const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
         
-        // Get user's attempts with topic info
+        // Get user's attempts with topic info, ordered by time
         const { data: attempts, error: attemptsError } = await supabase
             .from('user_attempts')
-            .select('topic, is_correct, question_id')
-            .eq('user_id', user.id);
+            .select('topic, is_correct, question_id, attempt_time')
+            .eq('user_id', user.id)
+            .order('attempt_time', { ascending: false });
             
         if (attemptsError || !attempts || attempts.length === 0) {
             return [];
@@ -656,11 +689,24 @@ async function getWeakestTopicsWithDetails(user) {
             }
         }
         
-        // Calculate topic accuracy
-        const topicStats = {};
+        // For each unique question, get only the most recent attempt
+        // Since attempts are already sorted by attempt_time desc, first occurrence is most recent
+        const mostRecentByQuestion = {};
         attempts.forEach(attempt => {
-            if (!attempt.topic) return;
+            if (!attempt.question_id || !attempt.topic) return;
             
+            // Only keep the first (most recent) attempt for each question
+            if (!mostRecentByQuestion[attempt.question_id]) {
+                mostRecentByQuestion[attempt.question_id] = {
+                    topic: attempt.topic,
+                    is_correct: attempt.is_correct
+                };
+            }
+        });
+        
+        // Calculate topic accuracy based on most recent attempts per unique question
+        const topicStats = {};
+        Object.values(mostRecentByQuestion).forEach(attempt => {
             if (!topicStats[attempt.topic]) {
                 topicStats[attempt.topic] = { 
                     correct: 0, 
@@ -675,16 +721,15 @@ async function getWeakestTopicsWithDetails(user) {
         });
         
         // Sort topics by accuracy (lowest first) - include topics with any attempts
-        // Lower threshold to show more weak areas
         const weakTopics = Object.entries(topicStats)
-            .filter(([_, stats]) => stats.total >= 1) // Show topics with at least 1 attempt
+            .filter(([_, stats]) => stats.total >= 1) // Show topics with at least 1 unique question
             .map(([topic, stats]) => ({
                 topic,
                 accuracy: (stats.correct / stats.total) * 100,
-                attempts: stats.total,
+                uniqueQuestions: stats.total,
                 subject: stats.subject
             }))
-            .filter(item => item.accuracy < 90) // Topics with less than 90% accuracy
+            .filter(item => item.accuracy < 70) // Topics with less than 70% accuracy
             .sort((a, b) => a.accuracy - b.accuracy) // Sort by accuracy, lowest first
             .slice(0, 5); // Top 5 weakest topics
             
