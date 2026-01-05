@@ -114,6 +114,12 @@ function isQuizPage() {
     return path === '/quiz' || path === '/quiz_page.html';
 }
 
+// Check if we're on settings page
+function isSettingsPage() {
+    const path = window.location.pathname;
+    return path === '/settings' || path === '/settings.html';
+}
+
 // Initialize authentication
 async function initializeAuth() {
     if (authInitialized || isRedirecting) {
@@ -320,6 +326,13 @@ async function initializeAuth() {
 // Handle unauthenticated users
 function handleUnauthenticated() {
     if (isQuizPage() && !isRedirecting) {
+        isRedirecting = true;
+        window.location.href = '/login';
+        return null;
+    }
+    
+    // Settings page requires auth - redirect to login
+    if (isSettingsPage() && !isRedirecting) {
         isRedirecting = true;
         window.location.href = '/login';
         return null;

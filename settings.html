@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathBubble - Settings</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="settings.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase JavaScript Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header" id="sidebar-header">
+                <div class="user-badge">
+                    <span class="user-badge-icon" id="sidebar-avatar">NA</span>
+                </div>
+                <div class="sidebar-title">
+                    <span class="user-first-name" id="sidebar-user-name">User's</span> Sidekick
+                </div>
+                <span class="dropdown-icon">▾</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item" data-tab="discover">
+                    <span class="nav-icon">✨</span>
+                    <span class="nav-label">Discover</span>
+                </a>
+                <a href="#" class="nav-item disabled" data-tab="arcade">
+                    <span class="nav-icon">🎮</span>
+                    <span class="nav-label">Arcade</span>
+                    <span class="coming-soon-badge">COMING SOON</span>
+                </a>
+                <a href="/" class="nav-item" data-tab="analytics">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Analytics</span>
+                </a>
+            </nav>
+
+            <!-- User Menu (hidden by default) -->
+            <div class="sidebar-user-menu" id="sidebar-user-menu">
+                <div class="user-info">
+                    <img id="menu-user-avatar" class="menu-avatar" src="" alt="User">
+                    <div class="menu-user-details">
+                        <div id="menu-user-name" class="menu-name">User Name</div>
+                        <div id="menu-user-email" class="menu-email">user@email.com</div>
+                    </div>
+                </div>
+                <div class="menu-divider"></div>
+                <a href="/settings" class="menu-item settings-btn active">
+                    <span class="menu-icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
+                <button id="sign-out-btn" class="menu-item sign-out-btn">
+                    <span class="menu-icon" id="auth-btn-icon">🚪</span>
+                    <span id="auth-btn-text">Sign Out</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="settings-container">
+                <h1 class="settings-title">Settings</h1>
+
+                <!-- Profile Section -->
+                <section class="settings-section">
+                    <h2 class="settings-section-title">Profile</h2>
+                    
+                    <div class="settings-form">
+                        <div class="form-group">
+                            <label class="form-label">First Name</label>
+                            <input type="text" id="first-name" class="form-input" placeholder="FirstName" value="">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" id="last-name" class="form-input" placeholder="LastName" value="">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Danger Zone -->
+                <section class="settings-section danger-section">
+                    <h2 class="settings-section-title">Danger Zone</h2>
+                    
+                    <button id="delete-account-btn" class="delete-account-btn">
+                        <span class="delete-icon">🗑️</span>
+                        Delete account
+                    </button>
+                </section>
+
+                <!-- Save Button -->
+                <button id="save-settings-btn" class="save-btn">Save</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="delete-modal" style="display: none;">
+        <div class="modal-content">
+            <h2 class="modal-title">Delete Account</h2>
+            <p class="modal-description">
+                This action <strong>cannot be undone</strong>. This will permanently delete your account and all associated data including your progress, statistics, and achievements.
+            </p>
+            <p class="modal-instruction">
+                Please type <strong>CONFIRM</strong> to delete your account:
+            </p>
+            <input type="text" id="confirm-input" class="confirm-input" placeholder="Type CONFIRM here">
+            <div class="modal-actions">
+                <button id="cancel-delete-btn" class="modal-btn cancel-btn">Cancel</button>
+                <button id="confirm-delete-btn" class="modal-btn delete-btn" disabled>Delete Account</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>

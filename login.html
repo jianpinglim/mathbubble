@@ -46,6 +46,12 @@
             </div>
 
             <div class="login-content">
+                <!-- Account Deleted Message -->
+                <div id="deleted-message" class="success-message" style="display: none;">
+                    <span class="success-icon">✓</span>
+                    <span>Your account has been deleted successfully.</span>
+                </div>
+
                 <!-- Loading State -->
                 <div id="loading-state" class="loading-state" style="display: none;">
                     <div class="loading-spinner"></div>
@@ -137,5 +143,19 @@
     </div>
 
     <script src="auth.js"></script>
+    <script>
+        // Show deleted message if redirected from account deletion
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('deleted') === 'true') {
+                const deletedMessage = document.getElementById('deleted-message');
+                if (deletedMessage) {
+                    deletedMessage.style.display = 'flex';
+                }
+                // Clean up URL
+                window.history.replaceState({}, document.title, '/login');
+            }
+        });
+    </script>
 </body>
 </html>

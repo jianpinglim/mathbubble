@@ -210,6 +210,11 @@ body {
     background: #f5f5f5;
 }
 
+.settings-btn {
+    color: #374151;
+    text-decoration: none;
+}
+
 .sign-out-btn {
     color: #dc2626;
 }
@@ -426,6 +431,112 @@ body {
     text-overflow: ellipsis;
 }
 
+/* Analytics Page Styles */
+.analytics-top-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.analytics-stat-box {
+    background: white;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    min-width: 140px;
+}
+
+.analytics-stat-label {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.analytics-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.analytics-topics-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.analytics-topics-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.analytics-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 1.25rem;
+}
+
+.topics-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.topic-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.topic-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.topic-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.topic-percentage {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.topic-bar {
+    height: 10px;
+    border-radius: 5px;
+    background: #f3f4f6;
+    overflow: hidden;
+}
+
+.topic-bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.5s ease;
+}
+
+/* Strong topics - orange gradient */
+.topic-bar-fill.strong {
+    background: linear-gradient(90deg, #FB5000 0%, #FFA500 100%);
+}
+
+/* Weak topics - yellow to red gradient based on percentage */
+.topic-bar-fill.weak {
+    background: linear-gradient(90deg, #F5B000 0%, #f87171 100%);
+}
+
+.topic-placeholder {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
 /* Coming Soon Container */
 .coming-soon-container {
     display: flex;
@@ -479,34 +590,49 @@ body {
     100% { transform: rotate(360deg); }
 }
 
-/* Guest Prompt */
-.guest-prompt {
+/* Guest Banner */
+.guest-banner {
     position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    z-index: 50;
+    top: 0;
+    left: 280px;
+    right: 0;
+    background: #FFF8E6;
+    border-bottom: 1px solid #FFE5A0;
+    z-index: 100;
+    padding: 0.6rem 1.5rem;
 }
 
-.signin-button {
+.guest-banner-content {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: #F5B000;
-    color: white;
-    border: none;
-    border-radius: 50px;
-    font-family: inherit;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(245, 176, 0, 0.3);
+    justify-content: center;
+    gap: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-.signin-button:hover {
-    background: #e5a500;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(245, 176, 0, 0.4);
+.guest-banner-text {
+    color: #B8860B;
+    font-size: 0.9rem;
+}
+
+.guest-banner-btn {
+    padding: 0.4rem 1rem;
+    background: transparent;
+    color: #F5B000;
+    border: 1.5px solid #F5B000;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.guest-banner-btn:hover {
+    background: #F5B000;
+    color: white;
 }
 
 /* Responsive Design */
@@ -616,6 +742,19 @@ body {
     .stat-label {
         font-size: 0.7rem;
     }
+    
+    .analytics-topics-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .analytics-top-stats {
+        flex-wrap: wrap;
+    }
+    
+    .analytics-stat-box {
+        flex: 1;
+        min-width: 120px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -673,14 +812,35 @@ body {
         font-size: 0.85rem;
     }
     
-    .guest-prompt {
-        bottom: 1rem;
-        right: 1rem;
-        left: 1rem;
+    .guest-banner {
+        left: 0;
+        padding: 0.5rem 1rem;
     }
     
-    .signin-button {
-        width: 100%;
-        justify-content: center;
+    .guest-banner-content {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+    
+    .guest-banner-text {
+        font-size: 0.8rem;
+    }
+    
+    .analytics-stat-box {
+        min-width: 100px;
+        padding: 1rem;
+    }
+    
+    .analytics-stat-value {
+        font-size: 1.25rem;
+    }
+    
+    .analytics-topics-card {
+        padding: 1rem;
+    }
+    
+    .topic-name {
+        font-size: 0.85rem;
     }
 }

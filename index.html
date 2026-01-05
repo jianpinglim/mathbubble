@@ -49,9 +49,13 @@
                     </div>
                 </div>
                 <div class="menu-divider"></div>
+                <a href="/settings" id="settings-btn" class="menu-item settings-btn">
+                    <span class="menu-icon">⚙️</span>
+                    <span>Settings</span>
+                </a>
                 <button id="sign-out-btn" class="menu-item sign-out-btn">
-                    <span class="menu-icon">🚪</span>
-                    Sign Out
+                    <span class="menu-icon" id="auth-btn-icon">🚪</span>
+                    <span id="auth-btn-text">Sign Out</span>
                 </button>
             </div>
         </aside>
@@ -114,36 +118,40 @@
             <div class="tab-content" id="analytics-tab">
                 <section class="content-section">
                     <div class="section-header">
-                        <h2 class="section-title">Your Progress</h2>
+                        <h2 class="section-title">Analytics</h2>
+                        <span class="beta-badge">BETA</span>
+                    </div>
+                    <p class="section-description">Analytics helps you better understand your strengths and weaknesses.</p>
+                    
+                    <!-- Top Stats Row -->
+                    <div class="analytics-top-stats">
+                        <div class="analytics-stat-box">
+                            <div class="analytics-stat-label">Streak</div>
+                            <div class="analytics-stat-value" id="current-streak">0 days</div>
+                        </div>
+                        <div class="analytics-stat-box">
+                            <div class="analytics-stat-label">Questions Answered</div>
+                            <div class="analytics-stat-value" id="total-questions">0</div>
+                        </div>
                     </div>
                     
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon">📊</div>
-                            <div class="stat-info">
-                                <div class="stat-value" id="total-questions">0</div>
-                                <div class="stat-label">Questions Answered</div>
+                    <!-- Topics Analysis Row -->
+                    <div class="analytics-topics-row">
+                        <!-- Strongest Topics -->
+                        <div class="analytics-topics-card">
+                            <h3 class="analytics-card-title">Strongest Topics</h3>
+                            <div class="topics-list" id="strongest-topics-list">
+                                <!-- Dynamically populated -->
+                                <div class="topic-placeholder">Complete some questions to see your strongest topics</div>
                             </div>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">✅</div>
-                            <div class="stat-info">
-                                <div class="stat-value" id="accuracy-rate">0%</div>
-                                <div class="stat-label">Accuracy Rate</div>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">🔥</div>
-                            <div class="stat-info">
-                                <div class="stat-value" id="current-streak">0</div>
-                                <div class="stat-label">Current Streak</div>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">🎯</div>
-                            <div class="stat-info">
-                                <div class="stat-value" id="weakest-topic">-</div>
-                                <div class="stat-label">Weakest Topic</div>
+                        
+                        <!-- Weakest Topics -->
+                        <div class="analytics-topics-card">
+                            <h3 class="analytics-card-title">Weakest Topics</h3>
+                            <div class="topics-list" id="weakest-topics-list">
+                                <!-- Dynamically populated -->
+                                <div class="topic-placeholder">Complete some questions to see your weakest topics</div>
                             </div>
                         </div>
                     </div>
@@ -158,12 +166,12 @@
         <p>Loading your progress...</p>
     </div>
 
-    <!-- Guest Login Prompt -->
-    <div class="guest-prompt" id="guest-prompt" style="display: none;">
-        <button id="home-signin-btn" class="signin-button">
-            <span class="signin-icon">🔑</span>
-            Sign In to track progress
-        </button>
+    <!-- Guest Login Banner -->
+    <div class="guest-banner" id="guest-prompt" style="display: none;">
+        <div class="guest-banner-content">
+            <span class="guest-banner-text">Create an account or sign in to access all features and personalised analytics.</span>
+            <button id="home-signin-btn" class="guest-banner-btn">Sign in</button>
+        </div>
     </div>
 
     <script src="auth.js"></script>

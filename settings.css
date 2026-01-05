@@ -1,0 +1,251 @@
+/* Settings Page Styles */
+.settings-container {
+    max-width: 600px;
+}
+
+.settings-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 2rem;
+}
+
+/* Settings Sections */
+.settings-section {
+    margin-bottom: 2rem;
+}
+
+.settings-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 1rem;
+}
+
+/* Form Styles */
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-bottom: 0.25rem;
+    padding-left: 1rem;
+}
+
+.form-input {
+    padding: 0.875rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: #1f2937;
+    background: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    max-width: 280px;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #F5B000;
+    box-shadow: 0 0 0 3px rgba(245, 176, 0, 0.1);
+}
+
+.form-input::placeholder {
+    color: #9ca3af;
+}
+
+/* Danger Zone */
+.danger-section {
+    margin-top: 2.5rem;
+}
+
+.delete-account-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: transparent;
+    color: #dc2626;
+    border: 1.5px solid #dc2626;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.delete-account-btn:hover {
+    background: #fef2f2;
+}
+
+.delete-icon {
+    font-size: 0.9rem;
+}
+
+/* Save Button */
+.save-btn {
+    margin-top: 1.5rem;
+    padding: 0.75rem 2rem;
+    background: #F5B000;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.save-btn:hover {
+    background: #e5a500;
+    transform: translateY(-1px);
+}
+
+.save-btn:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Delete Confirmation Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 450px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #dc2626;
+    margin-bottom: 1rem;
+}
+
+.modal-description {
+    font-size: 0.9rem;
+    color: #4b5563;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.modal-instruction {
+    font-size: 0.9rem;
+    color: #1f2937;
+    margin-bottom: 0.75rem;
+}
+
+.confirm-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    transition: border-color 0.2s ease;
+}
+
+.confirm-input:focus {
+    outline: none;
+    border-color: #dc2626;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.modal-btn {
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cancel-btn {
+    background: #f3f4f6;
+    color: #4b5563;
+    border: none;
+}
+
+.cancel-btn:hover {
+    background: #e5e7eb;
+}
+
+.delete-btn {
+    background: #dc2626;
+    color: white;
+    border: none;
+}
+
+.delete-btn:hover:not(:disabled) {
+    background: #b91c1c;
+}
+
+.delete-btn:disabled {
+    background: #f87171;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Settings button active state */
+.settings-btn.active {
+    background: #f5f5f5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .settings-container {
+        padding: 0;
+    }
+    
+    .form-input {
+        max-width: 100%;
+    }
+    
+    .modal-content {
+        margin: 1rem;
+        padding: 1.5rem;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    .modal-btn {
+        width: 100%;
+        text-align: center;
+    }
+}

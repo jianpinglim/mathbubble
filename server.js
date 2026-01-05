@@ -80,6 +80,10 @@ app.get('/quiz', (req, res) => {
     res.sendFile(path.join(__dirname, 'quiz_page.html'));
 });
 
+app.get('/settings', (req, res) => {
+    res.sendFile(path.join(__dirname, 'settings.html'));
+});
+
 // Handle SPA routing - redirect unknown routes to home
 app.get('*', (req, res) => {
     res.redirect('/');

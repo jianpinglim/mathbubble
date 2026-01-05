@@ -142,17 +142,42 @@ function updateSidebarProfile(user) {
     if (menuUserEmailEl) {
         menuUserEmailEl.textContent = email;
     }
+    
+    // Update auth button based on guest status
+    const authBtnIcon = document.getElementById('auth-btn-icon');
+    const authBtnText = document.getElementById('auth-btn-text');
+    if (authBtnIcon && authBtnText) {
+        if (user.isGuest) {
+            authBtnIcon.textContent = '🔑';
+            authBtnText.textContent = 'Sign In';
+        } else {
+            authBtnIcon.textContent = '🚪';
+            authBtnText.textContent = 'Sign Out';
+        }
+    }
 }
 
 // Show/hide guest prompt
 function showGuestPrompt() {
     const guestPrompt = document.getElementById('guest-prompt');
-    if (guestPrompt) guestPrompt.style.display = 'block';
+    const mainContent = document.querySelector('.main-content');
+    if (guestPrompt) {
+        guestPrompt.style.display = 'block';
+    }
+    if (mainContent) {
+        mainContent.style.paddingTop = '4rem';
+    }
 }
 
 function hideGuestPrompt() {
     const guestPrompt = document.getElementById('guest-prompt');
-    if (guestPrompt) guestPrompt.style.display = 'none';
+    const mainContent = document.querySelector('.main-content');
+    if (guestPrompt) {
+        guestPrompt.style.display = 'none';
+    }
+    if (mainContent) {
+        mainContent.style.paddingTop = '';
+    }
 }
 
 // Show no weak topics message
@@ -546,23 +571,51 @@ function calculateUserStats(attempts) {
     };
 }
 
-// Calculate current streak from attempts (consecutive correct answers, most recent first)
+// Calculate current streak from attempts (consecutive days with activity)
 function calculateStreakFromAttempts(attempts) {
     if (!attempts || attempts.length === 0) return 0;
     
-    // Sort by attempt_time descending (most recent first)
-    const sorted = [...attempts].sort((a, b) => 
-        new Date(b.attempt_time) - new Date(a.attempt_time)
+    // Get unique dates when user practiced (in local timezone)
+    const uniqueDates = new Set();
+    attempts.forEach(attempt => {
+        if (attempt.attempt_time) {
+            const date = new Date(attempt.attempt_time).toLocaleDateString();
+            uniqueDates.add(date);
+        }
+    });
+    
+    // Convert to array and sort descending (most recent first)
+    const sortedDates = Array.from(uniqueDates).sort((a, b) => 
+        new Date(b) - new Date(a)
     );
     
-    let streak = 0;
-    for (const attempt of sorted) {
-        if (attempt.is_correct) {
+    if (sortedDates.length === 0) return 0;
+    
+    // Check if the most recent activity is today or yesterday
+    const today = new Date().toLocaleDateString();
+    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString();
+    
+    // If most recent activity isn't today or yesterday, streak is broken
+    if (sortedDates[0] !== today && sortedDates[0] !== yesterday) {
+        return 0;
+    }
+    
+    // Count consecutive days
+    let streak = 1;
+    let currentDate = new Date(sortedDates[0]);
+    
+    for (let i = 1; i < sortedDates.length; i++) {
+        const prevDate = new Date(currentDate);
+        prevDate.setDate(prevDate.getDate() - 1);
+        
+        if (sortedDates[i] === prevDate.toLocaleDateString()) {
             streak++;
+            currentDate = prevDate;
         } else {
-            break; // Streak broken
+            break; // Gap in dates, streak ends
         }
     }
+    
     return streak;
 }
 
@@ -572,17 +625,105 @@ function updateStatsDisplay(stats) {
         totalQuestionsEl.textContent = stats.totalQuestions.toLocaleString();
     }
     
-    if (accuracyRateEl) {
-        accuracyRateEl.textContent = `${stats.accuracyRate}%`;
-    }
-    
     if (currentStreakEl) {
-        currentStreakEl.textContent = stats.currentStreak.toString();
+        currentStreakEl.textContent = `${stats.currentStreak} days`;
+    }
+}
+
+// Load and display analytics data
+async function loadAnalyticsData(user) {
+    if (!user || user.isGuest) {
+        return;
     }
     
-    if (weakestTopicEl) {
-        weakestTopicEl.textContent = stats.weakestTopic;
+    try {
+        const supabaseConfig = getSupabaseConfig();
+        if (!supabaseConfig?.url || !supabaseConfig?.key) {
+            return;
+        }
+        
+        const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+        
+        // Get user's attempts ordered by time
+        const { data: attempts, error } = await supabase
+            .from('user_attempts')
+            .select('topic, is_correct, question_id, attempt_time')
+            .eq('user_id', user.id)
+            .order('attempt_time', { ascending: false });
+        
+        if (error || !attempts || attempts.length === 0) {
+            return;
+        }
+        
+        // Calculate topic stats using ALL attempts (not just most recent)
+        // This gives a more realistic accuracy: correct attempts / total attempts
+        const topicStats = {};
+        attempts.forEach(attempt => {
+            if (!attempt.topic) return;
+            if (!topicStats[attempt.topic]) {
+                topicStats[attempt.topic] = { correct: 0, total: 0 };
+            }
+            topicStats[attempt.topic].total++;
+            if (attempt.is_correct) {
+                topicStats[attempt.topic].correct++;
+            }
+        });
+        
+        // Convert to array with accuracy
+        const topicsWithAccuracy = Object.entries(topicStats)
+            .filter(([_, stats]) => stats.total >= 1)
+            .map(([topic, stats]) => ({
+                topic,
+                accuracy: Math.round((stats.correct / stats.total) * 100),
+                total: stats.total
+            }));
+        
+        // Sort for strongest (highest accuracy first)
+        const strongestTopics = [...topicsWithAccuracy]
+            .sort((a, b) => b.accuracy - a.accuracy)
+            .slice(0, 3);
+        
+        // Sort for weakest (lowest accuracy first)
+        const weakestTopics = [...topicsWithAccuracy]
+            .sort((a, b) => a.accuracy - b.accuracy)
+            .slice(0, 3);
+        
+        // Render the lists
+        renderTopicsList('strongest-topics-list', strongestTopics, 'strong');
+        renderTopicsList('weakest-topics-list', weakestTopics, 'weak');
+        
+    } catch (error) {
+        console.error('Error loading analytics:', error);
     }
+}
+
+// Render topics list with progress bars
+function renderTopicsList(containerId, topics, type) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (topics.length === 0) {
+        container.innerHTML = '<div class="topic-placeholder">Complete some questions to see your topics</div>';
+        return;
+    }
+    
+    container.innerHTML = topics.map(topic => {
+        // For weak topics, invert the bar - lower accuracy = longer bar
+        const barWidth = type === 'weak' ? (100 - topic.accuracy) : topic.accuracy;
+        // For weak topics, show incorrect percentage instead of correct
+        const percentLabel = type === 'weak' ? `${100 - topic.accuracy}% incorrect` : `${topic.accuracy}% correct`;
+        return `
+        <div class="topic-item">
+            <div class="topic-item-header">
+                <span class="topic-name">${topic.topic}</span>
+                <span class="topic-percentage">${percentLabel}</span>
+            </div>
+            <div class="topic-bar">
+                <div class="topic-bar-fill ${type}" style="width: ${barWidth}%"></div>
+            </div>
+        </div>
+    `;
+    }).join('');
 }
 
 // Get questions from user's weakest topics
@@ -774,6 +915,14 @@ function setupTabNavigation() {
                     content.classList.add('active');
                 }
             });
+            
+            // Load analytics data when analytics tab is clicked
+            if (targetTab === 'analytics') {
+                const user = window.authManager?.getCurrentUser?.();
+                if (user) {
+                    loadAnalyticsData(user);
+                }
+            }
         });
     });
 }
@@ -802,13 +951,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Sign out button
+    // Settings button
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = '/settings';
+        });
+    }
+    
+    // Sign out/in button
     const signOutBtn = document.getElementById('sign-out-btn');
     if (signOutBtn) {
         signOutBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            if (window.authManager && window.authManager.signOut) {
-                window.authManager.signOut();
+            const user = window.authManager?.getCurrentUser?.();
+            
+            if (user && user.isGuest) {
+                // Guest mode - redirect to sign in
+                localStorage.removeItem('guestUser');
+                if (window.authManager) {
+                    window.authManager.getCurrentUser = () => null;
+                }
+                window.location.href = '/login';
+            } else {
+                // Logged in - sign out
+                if (window.authManager && window.authManager.signOut) {
+                    window.authManager.signOut();
+                }
             }
         });
     }
