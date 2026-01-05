@@ -350,6 +350,27 @@ body {
     background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
 }
 
+/* Reddish/Orange gradients for "For You" section */
+.gradient-sunset {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ffa07a 50%, #ffd93d 100%);
+}
+
+.gradient-coral {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fad0c4 100%);
+}
+
+.gradient-peach {
+    background: linear-gradient(135deg, #f8b500 0%, #ff6f61 50%, #ff9472 100%);
+}
+
+.gradient-warmth {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.gradient-fire {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
 .card-info {
     padding: 1rem 1.25rem;
     flex: 1;

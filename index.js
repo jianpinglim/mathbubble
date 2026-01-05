@@ -21,13 +21,22 @@ const forYouCardsContainer = document.getElementById('for-you-cards');
 const practiceCardsContainer = document.getElementById('practice-cards');
 const noWeakTopicsCard = document.getElementById('no-weak-topics-card');
 
-// Gradient classes for cards
+// Gradient classes for Practice cards (cool tones)
 const gradientClasses = [
     'gradient-cyan-pink',
     'gradient-purple-pink',
     'gradient-teal',
     'gradient-orange',
     'gradient-blue'
+];
+
+// Gradient classes for For You cards (warm/reddish tones)
+const forYouGradientClasses = [
+    'gradient-sunset',
+    'gradient-coral',
+    'gradient-peach',
+    'gradient-warmth',
+    'gradient-fire'
 ];
 
 // Get Supabase config from auth.js
@@ -221,7 +230,7 @@ async function loadForYouCards(user) {
                 topicData.topic,
                 'Secondary 4',
                 subjectDisplay,
-                gradientClasses[index % gradientClasses.length],
+                forYouGradientClasses[index % forYouGradientClasses.length],
                 () => startTopicPractice(topicData.topic, topicData.subject)
             );
             forYouCardsContainer.appendChild(card);
@@ -678,13 +687,21 @@ async function loadAnalyticsData(user) {
                 total: stats.total
             }));
         
-        // Sort for strongest (highest accuracy first)
+        // For strongest topics: use confidence-weighted score
+        // This rewards both accuracy AND practice volume
+        // Formula: accuracy * confidence factor (reaches 1.0 after 5 attempts)
         const strongestTopics = [...topicsWithAccuracy]
-            .sort((a, b) => b.accuracy - a.accuracy)
+            .map(t => ({
+                ...t,
+                weightedScore: t.accuracy * Math.min(t.total / 5, 1)
+            }))
+            .sort((a, b) => b.weightedScore - a.weightedScore)
             .slice(0, 3);
         
-        // Sort for weakest (lowest accuracy first)
+        // For weakest topics: require minimum 3 attempts to be meaningful
+        // Then sort by lowest accuracy
         const weakestTopics = [...topicsWithAccuracy]
+            .filter(t => t.total >= 3)
             .sort((a, b) => a.accuracy - b.accuracy)
             .slice(0, 3);
         
@@ -861,9 +878,9 @@ async function getWeakestTopicsWithDetails(user) {
             }
         });
         
-        // Sort topics by accuracy (lowest first) - include topics with any attempts
+        // Sort topics by accuracy (lowest first) - require minimum 3 attempts for meaningful data
         const weakTopics = Object.entries(topicStats)
-            .filter(([_, stats]) => stats.total >= 1) // Show topics with at least 1 unique question
+            .filter(([_, stats]) => stats.total >= 3) // Require at least 3 unique questions attempted
             .map(([topic, stats]) => ({
                 topic,
                 accuracy: (stats.correct / stats.total) * 100,
