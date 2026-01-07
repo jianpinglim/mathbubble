@@ -14,6 +14,16 @@ const firstNameInput = document.getElementById('first-name');
 const lastNameInput = document.getElementById('last-name');
 const saveBtn = document.getElementById('save-settings-btn');
 
+// Subject and Topics elements
+const subjectPillsContainer = document.getElementById('subject-pills');
+const topicsPillsContainer = document.getElementById('topics-pills');
+
+// State for subject/topic selection
+let selectedSubject = null;
+let selectedTopics = {}; // { subject: [topic1, topic2, ...] }
+let availableSubjects = [];
+let topicsBySubject = {}; // Cache topics by subject
+
 // Delete modal elements
 const deleteAccountBtn = document.getElementById('delete-account-btn');
 const deleteModal = document.getElementById('delete-modal');
@@ -53,6 +63,8 @@ async function initializeSettingsPage() {
         
         updateSidebarProfile(settingsCurrentUser);
         populateProfileForm(settingsCurrentUser);
+        await loadSubjectsAndTopics();
+        await loadUserPreferences();
         
     } catch (error) {
         console.error('Error initializing settings page:', error);
@@ -112,6 +124,185 @@ function populateProfileForm(user) {
     }
 }
 
+// Load subjects and topics from database
+async function loadSubjectsAndTopics() {
+    try {
+        const supabaseConfig = getSupabaseConfig();
+        if (!supabaseConfig?.url || !supabaseConfig?.key) {
+            console.error('Supabase not configured');
+            return;
+        }
+        
+        const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+        
+        // Fetch all unique subjects and topics from questions table
+        const { data: questions, error } = await supabase
+            .from('questions')
+            .select('subject, topic');
+        
+        if (error) throw error;
+        
+        // Extract unique subjects
+        const subjectsSet = new Set();
+        topicsBySubject = {};
+        
+        questions.forEach(q => {
+            if (q.subject) {
+                subjectsSet.add(q.subject);
+                if (!topicsBySubject[q.subject]) {
+                    topicsBySubject[q.subject] = new Set();
+                }
+                if (q.topic) {
+                    topicsBySubject[q.subject].add(q.topic);
+                }
+            }
+        });
+        
+        // Convert sets to arrays
+        availableSubjects = Array.from(subjectsSet).sort();
+        Object.keys(topicsBySubject).forEach(subject => {
+            topicsBySubject[subject] = Array.from(topicsBySubject[subject]).sort();
+        });
+        
+        renderSubjectPills();
+        
+    } catch (error) {
+        console.error('Error loading subjects and topics:', error);
+        if (subjectPillsContainer) {
+            subjectPillsContainer.innerHTML = '<span class="no-topics-text">Failed to load subjects</span>';
+        }
+    }
+}
+
+// Load user's saved preferences
+async function loadUserPreferences() {
+    if (!settingsCurrentUser) return;
+    
+    try {
+        const supabaseConfig = getSupabaseConfig();
+        const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+        
+        const { data, error } = await supabase
+            .from('users')
+            .select('selected_subject, selected_topics')
+            .eq('id', settingsCurrentUser.id)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') throw error;
+        
+        if (data) {
+            selectedSubject = data.selected_subject || null;
+            selectedTopics = data.selected_topics || {};
+            
+            // Re-render with saved preferences
+            renderSubjectPills();
+            if (selectedSubject) {
+                renderTopicPills(selectedSubject);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error loading user preferences:', error);
+    }
+}
+
+// Render subject pills
+function renderSubjectPills() {
+    if (!subjectPillsContainer) return;
+    
+    if (availableSubjects.length === 0) {
+        subjectPillsContainer.innerHTML = '<span class="no-topics-text">No subjects available</span>';
+        return;
+    }
+    
+    subjectPillsContainer.innerHTML = availableSubjects.map(subject => {
+        const isSelected = selectedSubject === subject;
+        const displayName = formatSubjectName(subject);
+        return `<button class="subject-pill${isSelected ? ' selected' : ''}" data-subject="${subject}">${displayName}</button>`;
+    }).join('');
+    
+    // Add click handlers
+    subjectPillsContainer.querySelectorAll('.subject-pill').forEach(pill => {
+        pill.addEventListener('click', () => handleSubjectClick(pill.dataset.subject));
+    });
+}
+
+// Handle subject selection
+function handleSubjectClick(subject) {
+    selectedSubject = subject;
+    
+    // Initialize selected topics for this subject if not exists
+    if (!selectedTopics[subject]) {
+        // By default, select all topics
+        selectedTopics[subject] = [...(topicsBySubject[subject] || [])];
+    }
+    
+    renderSubjectPills();
+    renderTopicPills(subject);
+}
+
+// Render topic pills for selected subject
+function renderTopicPills(subject) {
+    if (!topicsPillsContainer) return;
+    
+    const topics = topicsBySubject[subject] || [];
+    
+    if (topics.length === 0) {
+        topicsPillsContainer.innerHTML = '<span class="no-topics-text">No topics available for this subject</span>';
+        return;
+    }
+    
+    const subjectSelectedTopics = selectedTopics[subject] || [];
+    
+    topicsPillsContainer.innerHTML = topics.map(topic => {
+        const isSelected = subjectSelectedTopics.includes(topic);
+        return `<button class="topic-pill${isSelected ? ' selected' : ''}" data-topic="${topic}">${topic}</button>`;
+    }).join('');
+    
+    // Add click handlers
+    topicsPillsContainer.querySelectorAll('.topic-pill').forEach(pill => {
+        pill.addEventListener('click', () => handleTopicClick(subject, pill.dataset.topic));
+    });
+}
+
+// Handle topic selection/deselection
+function handleTopicClick(subject, topic) {
+    if (!selectedTopics[subject]) {
+        selectedTopics[subject] = [];
+    }
+    
+    const index = selectedTopics[subject].indexOf(topic);
+    if (index > -1) {
+        // Deselect - remove from array
+        selectedTopics[subject].splice(index, 1);
+    } else {
+        // Select - add to array
+        selectedTopics[subject].push(topic);
+    }
+    
+    renderTopicPills(subject);
+}
+
+// Format subject name for display
+function formatSubjectName(subject) {
+    const nameMap = {
+        'emath': 'E. Math',
+        'amath': 'A. Math',
+        'e_math': 'E. Math',
+        'a_math': 'A. Math',
+        'elementary_math': 'E. Math',
+        'additional_math': 'A. Math'
+    };
+    
+    const lower = subject.toLowerCase().replace(/\s+/g, '_');
+    if (nameMap[lower]) return nameMap[lower];
+    
+    // Capitalize first letter of each word
+    return subject.split(/[\s_]+/).map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+}
+
 // Save profile changes
 async function saveProfile() {
     if (!settingsCurrentUser) return;
@@ -137,10 +328,14 @@ async function saveProfile() {
         
         const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
         
-        // Update user in database
+        // Update user in database (profile + preferences)
         const { error } = await supabase
             .from('users')
-            .update({ full_name: fullName })
+            .update({ 
+                full_name: fullName,
+                selected_subject: selectedSubject,
+                selected_topics: selectedTopics
+            })
             .eq('id', settingsCurrentUser.id);
         
         if (error) throw error;

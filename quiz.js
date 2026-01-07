@@ -88,10 +88,26 @@ async function fetchQuestions() {
         
         let questions;
         let masteredQuestionIds = [];
+        let userSelectedTopics = null;
         
-        // For authenticated users, get their mastered questions to exclude
+        // For authenticated users, get their preferences and mastered questions
         if (currentUser && !currentUser.isGuest) {
             try {
+                // Use Supabase client for authenticated requests (handles RLS properly)
+                const supabase = window.supabase.createClient(config.url, config.key);
+                
+                // Fetch user's selected topics preferences
+                const { data: prefsData, error: prefsError } = await supabase
+                    .from('users')
+                    .select('selected_subject, selected_topics')
+                    .eq('id', currentUser.id)
+                    .single();
+                
+                if (!prefsError && prefsData && prefsData.selected_topics) {
+                    userSelectedTopics = prefsData.selected_topics;
+                }
+                
+                // Fetch mastered questions to exclude
                 const masteredResponse = await fetch(
                     `${config.url}/rest/v1/user_mastered_questions?select=question_id&user_id=eq.${currentUser.id}&mastered_at=not.is.null`,
                     {
@@ -108,12 +124,13 @@ async function fetchQuestions() {
                     masteredQuestionIds = masteredData.map(m => m.question_id);
                 }
             } catch (err) {
-                console.warn('Could not fetch mastered questions:', err);
+                console.warn('Could not fetch user preferences or mastered questions:', err);
             }
         }
         
         // Build URL with subject filter if specified
         let questionsUrl = `${config.url}/rest/v1/questions?select=*`;
+        const subjectForTopics = practiceSubject; // Store before clearing
         if (practiceSubject) {
             questionsUrl += `&subject=eq.${encodeURIComponent(practiceSubject)}`;
             // Clear the subject from session storage after using it
@@ -136,15 +153,37 @@ async function fetchQuestions() {
 
         let allQuestions = await response.json();
         
+        // Filter by user's selected topics if they have preferences set
+        if (userSelectedTopics && Object.keys(userSelectedTopics).length > 0) {
+            // Get all selected topics across all subjects (or just for the practice subject)
+            let allowedTopics = [];
+            
+            if (subjectForTopics && userSelectedTopics[subjectForTopics]) {
+                // If practicing a specific subject, only use topics from that subject
+                allowedTopics = userSelectedTopics[subjectForTopics];
+            } else {
+                // Otherwise, combine all selected topics from all subjects
+                Object.values(userSelectedTopics).forEach(topics => {
+                    if (Array.isArray(topics)) {
+                        allowedTopics.push(...topics);
+                    }
+                });
+            }
+            
+            // Only filter if user has selected specific topics
+            if (allowedTopics.length > 0) {
+                allQuestions = allQuestions.filter(q => allowedTopics.includes(q.topic));
+            }
+        }
+        
         // Filter out mastered questions for authenticated users
         if (masteredQuestionIds.length > 0) {
             allQuestions = allQuestions.filter(q => !masteredQuestionIds.includes(q.id));
-            console.log(`Filtered out ${masteredQuestionIds.length} mastered questions. ${allQuestions.length} remaining.`);
         }
         
-        // If all questions are mastered, reset and use all questions (still filtered by subject)
+        // If all questions are mastered, reset and use all questions (still filtered by subject and topics)
         if (allQuestions.length === 0) {
-            console.log('All questions mastered! Resetting to include all questions.');
+            console.log('All questions mastered or filtered! Resetting to include all questions.');
             const resetResponse = await fetch(questionsUrl, {
                 headers: {
                     'apikey': config.key,
@@ -153,6 +192,23 @@ async function fetchQuestions() {
                 }
             });
             allQuestions = await resetResponse.json();
+            
+            // Re-apply topic filter on reset (but not mastered filter)
+            if (userSelectedTopics && Object.keys(userSelectedTopics).length > 0) {
+                let allowedTopics = [];
+                if (subjectForTopics && userSelectedTopics[subjectForTopics]) {
+                    allowedTopics = userSelectedTopics[subjectForTopics];
+                } else {
+                    Object.values(userSelectedTopics).forEach(topics => {
+                        if (Array.isArray(topics)) {
+                            allowedTopics.push(...topics);
+                        }
+                    });
+                }
+                if (allowedTopics.length > 0) {
+                    allQuestions = allQuestions.filter(q => allowedTopics.includes(q.topic));
+                }
+            }
         }
         
         // Shuffle array using Fisher-Yates algorithm

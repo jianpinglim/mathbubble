@@ -225,6 +225,67 @@
     background: #f5f5f5;
 }
 
+/* Subject and Topics Pills */
+.subject-pills,
+.topics-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.subject-pill,
+.topic-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #4b5563;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.subject-pill:hover,
+.topic-pill:hover {
+    border-color: #F5B000;
+    background: #fffbeb;
+}
+
+.subject-pill.selected,
+.topic-pill.selected {
+    background: #F5B000;
+    border-color: #F5B000;
+    color: #ffffff;
+}
+
+.subject-pill.selected:hover,
+.topic-pill.selected:hover {
+    background: #e5a500;
+    border-color: #e5a500;
+}
+
+.section-description {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    margin-bottom: 0.75rem;
+}
+
+.loading-text {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.no-topics-text {
+    font-size: 0.875rem;
+    color: #9ca3af;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .settings-container {
