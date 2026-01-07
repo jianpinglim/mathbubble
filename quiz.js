@@ -29,6 +29,7 @@ const topicChipEl = document.getElementById('topic-chip');
 const questionTextEl = document.getElementById('question-text');
 const optionsContainerEl = document.getElementById('options-container');
 const checkBtnEl = document.getElementById('check-btn');
+const nextBtnEl = document.getElementById('next-btn');
 
 const finalScoreEl = document.getElementById('final-score');
 const finalPercentageEl = document.getElementById('final-percentage');
@@ -466,13 +467,12 @@ function checkAnswer() {
     trackUserAttempt(question.id, question.topic, selectedAnswer, isCorrect, timeTaken);
     
     if (isCorrect) {
-        // Correct answer - show success and move to next question
+        // Correct answer - show success and show Next button
         selectedOption.classList.add('correct');
         
-        // Brief pause then move to next question
-        setTimeout(() => {
-            moveToNextQuestion();
-        }, 800);
+        // Hide Check button, show Next button
+        checkBtnEl.style.display = 'none';
+        nextBtnEl.style.display = 'block';
         
     } else {
         // Wrong answer - immediately lose a heart and increment attempts
@@ -501,21 +501,25 @@ function checkAnswer() {
             checkBtnEl.disabled = true;
         }, 600);
         
-        // After 3 wrong attempts, show correct answer and move to next question
+        // After 3 wrong attempts, show correct answer and show Next button
         if (currentAttempts >= maxAttemptsPerQuestion) {
             const correctOption = document.querySelector(`[data-index="${question.correct_index}"]`);
             correctOption.classList.add('correct');
             
-            // Move to next question after showing correct answer
-            setTimeout(() => {
-                moveToNextQuestion();
-            }, 1500);
+            // Hide Check button, show Next button
+            checkBtnEl.style.display = 'none';
+            nextBtnEl.style.display = 'block';
         }
     }
 }
 
 // Move to next question or end quiz
 function moveToNextQuestion() {
+    // Reset button states
+    nextBtnEl.style.display = 'none';
+    checkBtnEl.style.display = 'block';
+    checkBtnEl.disabled = true;
+    
     if (currentQuestionIndex < currentQuestions.length - 1) {
         currentQuestionIndex++;
         displayQuestion();
@@ -650,6 +654,7 @@ function showError(message) {
 
 // Event listeners
 checkBtnEl.addEventListener('click', checkAnswer);
+nextBtnEl.addEventListener('click', moveToNextQuestion);
 restartBtnEl.addEventListener('click', initQuiz);
 restartGameBtnEl.addEventListener('click', initQuiz);
 retryBtnEl.addEventListener('click', initQuiz);

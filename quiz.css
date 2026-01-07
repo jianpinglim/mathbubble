@@ -458,6 +458,35 @@ body {
     box-shadow: 0 4px 0 #d0d0d0;
 }
 
+/* Next Button */
+.next-button {
+    background: #F5B000;
+    color: white;
+    border: none;
+    border-radius: 16px;
+    padding: 16px 48px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 0 #c99000;
+    position: relative;
+    top: 0;
+}
+
+.next-button:hover {
+    background: #ffc520;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #c99000;
+}
+
+.next-button:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #c99000;
+}
+
 /* Feedback Modal */
 .feedback-modal {
     position: fixed;
