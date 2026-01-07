@@ -953,8 +953,58 @@ function setupTabNavigation() {
                     loadAnalyticsData(user);
                 }
             }
+            
+            // Close mobile menu after selecting a tab
+            closeMobileMenu();
         });
     });
+}
+
+// Setup mobile hamburger menu
+function setupMobileMenu() {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    
+    if (!hamburgerBtn || !sidebar) return;
+    
+    // Toggle sidebar on hamburger click
+    hamburgerBtn.addEventListener('click', function() {
+        toggleMobileMenu();
+    });
+    
+    // Close sidebar on overlay click
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', function() {
+            closeMobileMenu();
+        });
+    }
+}
+
+// Toggle mobile menu
+function toggleMobileMenu() {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    
+    if (hamburgerBtn) hamburgerBtn.classList.toggle('active');
+    if (sidebar) sidebar.classList.toggle('open');
+    if (sidebarOverlay) sidebarOverlay.classList.toggle('show');
+    
+    // Prevent body scroll when menu is open
+    document.body.style.overflow = sidebar?.classList.contains('open') ? 'hidden' : '';
+}
+
+// Close mobile menu
+function closeMobileMenu() {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    
+    if (hamburgerBtn) hamburgerBtn.classList.remove('active');
+    if (sidebar) sidebar.classList.remove('open');
+    if (sidebarOverlay) sidebarOverlay.classList.remove('show');
+    document.body.style.overflow = '';
 }
 
 // Event listeners
@@ -964,6 +1014,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Setup tab navigation
     setupTabNavigation();
+    
+    // Setup mobile hamburger menu
+    setupMobileMenu();
     
     // Sidebar header click (user menu toggle)
     if (sidebarHeader && sidebarUserMenu) {
