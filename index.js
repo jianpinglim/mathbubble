@@ -155,6 +155,9 @@ function updateSidebarProfile(user) {
     // Update auth button based on guest status
     const authBtnIcon = document.getElementById('auth-btn-icon');
     const authBtnText = document.getElementById('auth-btn-text');
+    const settingsBtn = document.getElementById('settings-btn');
+    const forYouSection = document.getElementById('for-you-section');
+    
     if (authBtnIcon && authBtnText) {
         if (user.isGuest) {
             authBtnIcon.textContent = '🔑';
@@ -163,6 +166,16 @@ function updateSidebarProfile(user) {
             authBtnIcon.textContent = '🚪';
             authBtnText.textContent = 'Sign Out';
         }
+    }
+    
+    // Hide settings button for guests
+    if (settingsBtn) {
+        settingsBtn.style.display = user.isGuest ? 'none' : 'flex';
+    }
+    
+    // Hide For You section for guests
+    if (forYouSection) {
+        forYouSection.style.display = user.isGuest ? 'none' : 'block';
     }
 }
 
