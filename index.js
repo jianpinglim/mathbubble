@@ -224,6 +224,7 @@ async function loadForYouCards(user) {
     
     try {
         const weakTopicsData = await getWeakestTopicsWithDetails(user);
+        console.log('Weak topics data:', weakTopicsData);
         
         if (weakTopicsData.length === 0) {
             showNoWeakTopics();
@@ -891,20 +892,34 @@ async function getWeakestTopicsWithDetails(user) {
             }
         });
         
-        // Sort topics by accuracy (lowest first) - require minimum 3 attempts for meaningful data
+        console.log('Topic stats for For You:', topicStats);
+        
+        // Sort topics by accuracy (lowest first) - require minimum 1 attempt for data
         const weakTopics = Object.entries(topicStats)
-            .filter(([_, stats]) => stats.total >= 3) // Require at least 3 unique questions attempted
+            .filter(([_, stats]) => stats.total >= 1) // Require at least 1 unique question attempted
             .map(([topic, stats]) => ({
                 topic,
                 accuracy: (stats.correct / stats.total) * 100,
                 uniqueQuestions: stats.total,
                 subject: stats.subject
             }))
-            .filter(item => item.accuracy < 70) // Topics with less than 70% accuracy
+            .filter(item => item.accuracy < 100) // Topics with less than 100% accuracy (any mistakes)
             .sort((a, b) => a.accuracy - b.accuracy) // Sort by accuracy, lowest first
             .slice(0, 5); // Top 5 weakest topics
+        
+        console.log('Filtered weak topics:', weakTopics);
+        
+        // Ensure no duplicate topics (use Set to track)
+        const seenTopics = new Set();
+        const uniqueWeakTopics = weakTopics.filter(item => {
+            if (seenTopics.has(item.topic)) {
+                return false;
+            }
+            seenTopics.add(item.topic);
+            return true;
+        });
             
-        return weakTopics;
+        return uniqueWeakTopics;
         
     } catch (error) {
         console.error('Error getting weakest topics:', error);

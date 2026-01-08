@@ -1,8 +1,9 @@
 // Quiz configuration
 const QUIZ_CONFIG = {
-    questionsPerQuiz: 5,
+    questionsPerQuiz: 3,
     maxLives: 5,
     timePerQuestion: 30000, // 30 seconds (optional)
+    recentQuestionsToAvoid: 10, // Avoid showing the last N questions from previous sessions
 };
 
 // Quiz state
@@ -15,6 +16,26 @@ let questionStartTime = null;
 let isAnswering = false;
 let currentAttempts = 0;
 let maxAttemptsPerQuestion = 3;
+
+// Track recently shown question IDs to avoid repetition across sessions
+function getRecentQuestionIds() {
+    try {
+        const stored = sessionStorage.getItem('recentQuestionIds');
+        return stored ? JSON.parse(stored) : [];
+    } catch {
+        return [];
+    }
+}
+
+function addToRecentQuestions(questionIds) {
+    try {
+        let recent = getRecentQuestionIds();
+        recent = [...questionIds, ...recent].slice(0, QUIZ_CONFIG.recentQuestionsToAvoid);
+        sessionStorage.setItem('recentQuestionIds', JSON.stringify(recent));
+    } catch {
+        // Ignore storage errors
+    }
+}
 
 // DOM elements
 const loadingEl = document.getElementById('loading');
@@ -212,14 +233,39 @@ async function fetchQuestions() {
             }
         }
         
+        // Get recently shown question IDs to avoid repetition
+        const recentQuestionIds = getRecentQuestionIds();
+        
+        // Prioritize questions not recently shown
+        const notRecentQuestions = allQuestions.filter(q => !recentQuestionIds.includes(q.id));
+        const recentQuestions = allQuestions.filter(q => recentQuestionIds.includes(q.id));
+        
+        // Use non-recent questions first, fall back to recent if needed
+        let questionsPool = notRecentQuestions.length >= QUIZ_CONFIG.questionsPerQuiz 
+            ? notRecentQuestions 
+            : [...notRecentQuestions, ...recentQuestions];
+        
         // Shuffle array using Fisher-Yates algorithm
-        for (let i = allQuestions.length - 1; i > 0; i--) {
+        for (let i = questionsPool.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
+            [questionsPool[i], questionsPool[j]] = [questionsPool[j], questionsPool[i]];
         }
         
-        // Take the first N questions after shuffling
-        questions = allQuestions.slice(0, QUIZ_CONFIG.questionsPerQuiz);
+        // Remove any duplicate questions by ID (ensure uniqueness)
+        const seenIds = new Set();
+        const uniqueQuestions = questionsPool.filter(q => {
+            if (seenIds.has(q.id)) {
+                return false;
+            }
+            seenIds.add(q.id);
+            return true;
+        });
+        
+        // Take the first N questions after shuffling and deduplication
+        questions = uniqueQuestions.slice(0, QUIZ_CONFIG.questionsPerQuiz);
+        
+        // Track these questions as recently shown
+        addToRecentQuestions(questions.map(q => q.id));
         
         if (!questions || questions.length === 0) {
             throw new Error('No questions available for practice');
