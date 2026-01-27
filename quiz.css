@@ -64,6 +64,12 @@ body {
     font-size: 1.8rem;
 }
 
+.logo-img {
+    width: 120px;
+    height: auto;
+    object-fit: contain;
+}
+
 /* Training Mode Indicator */
 .training-indicator {
     display: flex;
