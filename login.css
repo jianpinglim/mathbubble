@@ -80,9 +80,17 @@ body {
     font-weight: 400;
 }
 
+/* Login Content */
+.login-content {
+    width: 100%;
+}
+
 /* Login Form */
 .login-form {
     margin-bottom: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
 }
 
 .google-login-btn {
@@ -472,4 +480,43 @@ body {
         padding: 14px 20px;
         font-size: 1rem;
     }
+}
+
+/* Back Link Container */
+.back-link-container {
+    text-align: center;
+    margin-top: 1.5rem;
+}
+
+.back-link {
+    color: #ffa800;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.back-link:hover {
+    color: #ff9500;
+    text-decoration: underline;
+}
+
+/* Teacher Portal Link */
+.teacher-portal-link {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f0f0f0;
+    text-align: center;
+}
+
+.teacher-link {
+    color: #9ca3af;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.teacher-link:hover {
+    color: #ffa800;
 }

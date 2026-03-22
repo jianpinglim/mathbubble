@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SideKick - Leaderboard</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="leaderboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Mobile Header -->
+        <header class="mobile-header">
+            <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle menu">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+            <div class="mobile-logo">SideKick</div>
+        </header>
+
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header" id="sidebar-header">
+                <div class="user-badge">
+                    <span class="user-badge-icon" id="sidebar-avatar">NA</span>
+                </div>
+                <div class="sidebar-title">
+                    <span class="user-first-name" id="sidebar-user-name">User's</span> Sidekick
+                </div>
+                <span class="dropdown-icon">&#9662;</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item" data-tab="discover">
+                    <span class="nav-icon">&#10024;</span>
+                    <span class="nav-label">Discover</span>
+                </a>
+                <a href="#" class="nav-item disabled" data-tab="arcade">
+                    <span class="nav-icon">&#127918;</span>
+                    <span class="nav-label">Arcade</span>
+                    <span class="coming-soon-badge">COMING SOON</span>
+                </a>
+                <a href="/?tab=analytics" class="nav-item" data-tab="analytics">
+                    <span class="nav-icon">&#128202;</span>
+                    <span class="nav-label">Analytics</span>
+                </a>
+                <a href="/leaderboard" class="nav-item active" data-tab="leaderboard">
+                    <span class="nav-icon">&#127942;</span>
+                    <span class="nav-label">Leaderboard</span>
+                </a>
+            </nav>
+
+            <!-- User Menu (hidden by default) -->
+            <div class="sidebar-user-menu" id="sidebar-user-menu">
+                <div class="user-info">
+                    <img id="menu-user-avatar" class="menu-avatar" src="" alt="User">
+                    <div class="menu-user-details">
+                        <div id="menu-user-name" class="menu-name">User Name</div>
+                        <div id="menu-user-email" class="menu-email">user@email.com</div>
+                    </div>
+                </div>
+                <div class="menu-divider"></div>
+                <a href="/settings" id="settings-btn" class="menu-item settings-btn">
+                    <span class="menu-icon">&#9881;&#65039;</span>
+                    <span>Settings</span>
+                </a>
+                <button id="sign-out-btn" class="menu-item sign-out-btn">
+                    <span class="menu-icon" id="auth-btn-icon">&#128682;</span>
+                    <span id="auth-btn-text">Sign Out</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <section class="content-section">
+                <div class="section-header">
+                    <h2 class="section-title">Leaderboard</h2>
+                    <span class="beta-badge">BETA</span>
+                </div>
+                <p class="section-description">See how you stack up against other students. Ranked by accuracy (minimum 10 questions for global).</p>
+
+                <!-- Tab Toggle -->
+                <div class="lb-tabs">
+                    <button class="lb-tab active" data-lb-tab="global">Global</button>
+                    <button class="lb-tab" data-lb-tab="class">My Class</button>
+                </div>
+
+                <!-- Global Tab -->
+                <div class="lb-panel active" id="lb-global">
+                    <div class="lb-loading" id="global-loading">
+                        <div class="loading-spinner"></div>
+                        <p>Loading leaderboard...</p>
+                    </div>
+                    <div class="lb-empty" id="global-empty" style="display:none;">
+                        <span class="lb-empty-icon">&#128202;</span>
+                        <p>No students have completed enough questions yet. Answer at least 10 questions to appear here!</p>
+                    </div>
+                    <table class="lb-table" id="global-table" style="display:none;">
+                        <thead>
+                            <tr>
+                                <th class="lb-col-rank">Rank</th>
+                                <th class="lb-col-name">Name</th>
+                                <th class="lb-col-acc">Accuracy</th>
+                                <th class="lb-col-q">Questions</th>
+                                <th class="lb-col-streak">Streak</th>
+                            </tr>
+                        </thead>
+                        <tbody id="global-tbody"></tbody>
+                    </table>
+                    <!-- Pinned user row when not in top list -->
+                    <div class="lb-pinned" id="global-pinned" style="display:none;">
+                        <div class="lb-pinned-divider"></div>
+                        <table class="lb-table lb-table-pinned">
+                            <tbody id="global-pinned-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="lb-user-rank" id="global-user-rank" style="display:none;"></div>
+                </div>
+
+                <!-- Class Tab -->
+                <div class="lb-panel" id="lb-class">
+                    <div class="lb-loading" id="class-loading" style="display:none;">
+                        <div class="loading-spinner"></div>
+                        <p>Loading class leaderboard...</p>
+                    </div>
+                    <div class="lb-empty" id="class-empty" style="display:none;">
+                        <span class="lb-empty-icon">&#127891;</span>
+                        <p>You're not in a class yet. Ask your teacher for a join code.</p>
+                    </div>
+                    <div class="lb-class-name" id="class-name-header" style="display:none;"></div>
+                    <table class="lb-table" id="class-table" style="display:none;">
+                        <thead>
+                            <tr>
+                                <th class="lb-col-rank">Rank</th>
+                                <th class="lb-col-name">Name</th>
+                                <th class="lb-col-acc">Accuracy</th>
+                                <th class="lb-col-q">Questions</th>
+                                <th class="lb-col-streak">Streak</th>
+                            </tr>
+                        </thead>
+                        <tbody id="class-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="leaderboard.js"></script>
+</body>
+</html>

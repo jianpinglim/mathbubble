@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SideKick - Student Details</title>
+    <link rel="stylesheet" href="/teacher.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase JavaScript Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Mobile Header -->
+        <header class="mobile-header">
+            <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle menu">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+            <div class="mobile-logo">SideKick Teacher</div>
+        </header>
+
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header" id="sidebar-header">
+                <div class="user-badge">
+                    <span class="user-badge-icon" id="sidebar-avatar">T</span>
+                </div>
+                <div class="sidebar-title">
+                    <span class="user-first-name" id="sidebar-user-name">Teacher's</span> Portal
+                </div>
+                <span class="dropdown-icon">▾</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/teacher" class="nav-item" data-tab="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Dashboard</span>
+                </a>
+                <a href="/teacher" class="nav-item" data-tab="students">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-label">Students</span>
+                </a>
+                <a href="#" class="nav-item disabled">
+                    <span class="nav-icon">❓</span>
+                    <span class="nav-label">Questions</span>
+                    <span class="coming-soon-badge">COMING SOON</span>
+                </a>
+                <a href="#" class="nav-item disabled">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-label">Reports</span>
+                    <span class="coming-soon-badge">COMING SOON</span>
+                </a>
+            </nav>
+
+            <!-- User Menu (hidden by default) -->
+            <div class="sidebar-user-menu" id="sidebar-user-menu">
+                <div class="user-info">
+                    <img id="menu-user-avatar" class="menu-avatar" src="" alt="User">
+                    <div class="menu-user-details">
+                        <div id="menu-user-name" class="menu-name">Teacher Name</div>
+                        <div id="menu-user-email" class="menu-email">teacher@email.com</div>
+                    </div>
+                </div>
+                <div class="menu-divider"></div>
+                <button id="sign-out-btn" class="menu-item sign-out-btn">
+                    <span class="menu-icon">🚪</span>
+                    <span>Sign Out</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Back Button -->
+            <button id="back-btn" class="back-button">← Back to Dashboard</button>
+
+            <!-- Student Header -->
+            <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:2rem;">
+                <div id="student-avatar" class="student-avatar student-avatar-lg">S</div>
+                <div>
+                    <h1 class="page-title" id="student-name" style="margin:0;">Student Name</h1>
+                    <p style="color:#6b7280;margin-top:0.5rem;" id="student-email">student@email.com</p>
+                </div>
+            </div>
+
+            <!-- Student Stats -->
+            <div class="stats-row" style="margin-bottom: 2rem;">
+                <div class="stat-card">
+                    <div class="stat-label">Total Questions</div>
+                    <div class="stat-value" id="student-total">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Accuracy</div>
+                    <div class="stat-value" id="student-accuracy">0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Current Streak</div>
+                    <div class="stat-value" id="student-streak">0 days</div>
+                </div>
+            </div>
+
+            <!-- Topic Breakdown -->
+            <div class="grid-two-col" id="student-content" style="display: none;">
+                <div class="chart-card">
+                    <h3 class="chart-title">Topic Performance</h3>
+                    <div id="topic-breakdown" class="bar-chart">
+                        <p class="empty-text">No data yet</p>
+                    </div>
+                </div>
+
+                <!-- Recent Attempts -->
+                <div class="chart-card">
+                    <h3 class="chart-title">Recent Attempts</h3>
+                    <div id="recent-attempts" style="display:flex;flex-direction:column;gap:0.6rem;">
+                        <p class="empty-text">No attempts yet</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/auth.js"></script>
+    <script src="/teacher_student.js"></script>
+</body>
+</html>

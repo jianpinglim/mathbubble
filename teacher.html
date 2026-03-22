@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SideKick - Teacher Dashboard</title>
+    <link rel="stylesheet" href="/teacher.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase JavaScript Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Chart.js for bar charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Mobile Header -->
+        <header class="mobile-header">
+            <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle menu">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+            <div class="mobile-logo">SideKick Teacher</div>
+        </header>
+
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header" id="sidebar-header">
+                <div class="user-badge">
+                    <span class="user-badge-icon" id="sidebar-avatar">T</span>
+                </div>
+                <div class="sidebar-title">
+                    <span class="user-first-name" id="sidebar-user-name">Teacher's</span> Portal
+                </div>
+                <span class="dropdown-icon">▾</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-tab="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="students">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-label">Students</span>
+                </a>
+                <a href="#" class="nav-item disabled" data-tab="questions">
+                    <span class="nav-icon">❓</span>
+                    <span class="nav-label">Questions</span>
+                    <span class="coming-soon-badge">COMING SOON</span>
+                </a>
+                <a href="#" class="nav-item disabled" data-tab="reports">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-label">Reports</span>
+                    <span class="coming-soon-badge">COMING SOON</span>
+                </a>
+            </nav>
+
+            <!-- User Menu (hidden by default) -->
+            <div class="sidebar-user-menu" id="sidebar-user-menu">
+                <div class="user-info">
+                    <img id="menu-user-avatar" class="menu-avatar" src="" alt="User">
+                    <div class="menu-user-details">
+                        <div id="menu-user-name" class="menu-name">Teacher Name</div>
+                        <div id="menu-user-email" class="menu-email">teacher@email.com</div>
+                    </div>
+                </div>
+                <div class="menu-divider"></div>
+                <button id="sign-out-btn" class="menu-item sign-out-btn">
+                    <span class="menu-icon">🚪</span>
+                    <span>Sign Out</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-content active" id="dashboard-tab">
+                <h1 class="page-title" id="dashboard-title">Dashboard</h1>
+
+                <!-- Class Join Card -->
+                <div id="class-card" class="class-card" style="display: none;">
+                    <div class="class-card-header">
+                        <div class="class-info">
+                            <h3 id="class-name">Class Name</h3>
+                            <p id="class-subject">Math - O-Level</p>
+                        </div>
+                    </div>
+                    
+                    <div class="class-code">
+                        <span class="class-code-label">Join Code</span>
+                        <div class="class-code-value" id="join-code">SK-4A29</div>
+                    </div>
+
+                    <div class="class-actions">
+                        <button id="copy-code-btn" class="btn btn-primary">📋 Copy Join Link</button>
+                        <button id="edit-class-btn" class="btn btn-secondary">✏️ Edit Class</button>
+                    </div>
+
+                    <div id="student-count" style="margin-top: 1rem; color: #6b7280; font-size: 0.9rem;">
+                        <strong id="count-value">0</strong> students in this class
+                    </div>
+                </div>
+
+                <!-- Empty Class State -->
+                <div id="no-class-message" class="class-card" style="display: none;">
+                    <div class="empty-state">
+                        <div class="empty-icon">📚</div>
+                        <h3 class="empty-title">No Class Created Yet</h3>
+                        <p class="empty-message">Create your first class to get started managing students</p>
+                        <button id="create-class-btn" class="btn btn-primary">+ Create New Class</button>
+                    </div>
+                </div>
+
+                <!-- Stats Row -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Questions Answered</div>
+                        <div class="stat-value" id="total-questions">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Class Accuracy</div>
+                        <div class="stat-value" id="class-accuracy">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Today</div>
+                        <div class="stat-value" id="active-today">0</div>
+                    </div>
+                </div>
+
+                <!-- Two Column Grid: Charts and Students -->
+                <div class="grid-two-col" id="dashboard-grid" style="display: none;">
+                    <!-- Weak Topics Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Class Weak Topics</h3>
+                        <div id="weak-topics-container" class="bar-chart">
+                            <p class="empty-text">No data yet</p>
+                        </div>
+                    </div>
+
+                    <!-- Students List -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Students</h3>
+                        <div id="students-list-container" class="students-list">
+                            <p class="empty-text" style="padding:2rem 1rem;text-align:center">No students yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Students Tab -->
+            <div class="tab-content" id="students-tab">
+                <h1 class="page-title">Students</h1>
+                <div class="card">
+                    <div id="all-students-list" class="students-list">
+                        <p class="empty-text" style="padding:2rem 1rem;text-align:center">No students enrolled yet</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Questions Tab -->
+            <div class="tab-content" id="questions-tab">
+                <div class="empty-state" style="margin-top: 3rem;">
+                    <div class="empty-icon">❓</div>
+                    <h3 class="empty-title">Questions Management</h3>
+                    <p class="empty-message">This feature is coming soon</p>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div class="tab-content" id="reports-tab">
+                <div class="empty-state" style="margin-top: 3rem;">
+                    <div class="empty-icon">📈</div>
+                    <h3 class="empty-title">Advanced Reports</h3>
+                    <p class="empty-message">This feature is coming soon</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Class Modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Create a New Class</h2>
+                <button class="modal-close" id="modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-error" class="modal-error" style="display:none;"></div>
+                <div class="form-group">
+                    <label class="form-label">Class Name</label>
+                    <input type="text" id="class-name-input" class="form-input" placeholder="e.g. 4A Mathematics" maxlength="60">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Subject</label>
+                    <select id="class-subject-input" class="form-input">
+                        <option value="E-Math">E-Math (O-Level)</option>
+                        <option value="A-Math">A-Math (O-Level)</option>
+                        <option value="Mathematics">Mathematics</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+                <button class="btn btn-primary" id="modal-submit">Create Class</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/auth.js"></script>
+    <script src="/teacher.js"></script>
+</body>
+</html>

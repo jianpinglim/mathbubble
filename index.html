@@ -50,6 +50,10 @@
                     <span class="nav-icon">📊</span>
                     <span class="nav-label">Analytics</span>
                 </a>
+                <a href="/leaderboard" class="nav-item" data-tab="leaderboard">
+                    <span class="nav-icon">🏆</span>
+                    <span class="nav-label">Leaderboard</span>
+                </a>
             </nav>
 
             <!-- User Menu (hidden by default) -->
@@ -77,6 +81,22 @@
         <main class="main-content">
             <!-- Discover Tab -->
             <div class="tab-content active" id="discover-tab">
+                <!-- Join Class Card (only shown for logged-in non-guest users) -->
+                <div id="join-class-card" class="join-class-card" style="display:none;">
+                    <div class="join-class-content">
+                        <span class="join-class-icon">🎓</span>
+                        <div class="join-class-text">
+                            <h3>Join a Class</h3>
+                            <p>Enter your teacher's class code to connect</p>
+                        </div>
+                    </div>
+                    <div class="join-class-form" id="join-class-form">
+                        <input type="text" id="join-code-input" class="join-code-input" placeholder="e.g. SK-A3B2" maxlength="7" autocomplete="off">
+                        <button id="join-class-btn" class="join-class-btn">Join</button>
+                    </div>
+                    <div id="join-class-msg" class="join-class-msg" style="display:none;"></div>
+                </div>
+
                 <!-- For You Section -->
                 <section class="content-section" id="for-you-section">
                     <div class="section-header">

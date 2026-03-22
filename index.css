@@ -623,6 +623,89 @@ body {
     100% { transform: rotate(360deg); }
 }
 
+/* Join Class Card */
+.join-class-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.join-class-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+.join-class-icon {
+    font-size: 1.5rem;
+}
+.join-class-text h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+.join-class-text p {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 0;
+}
+.join-class-form {
+    display: flex;
+    gap: 0.5rem;
+}
+.join-code-input {
+    flex: 1;
+    padding: 0.6rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.join-code-input:focus {
+    border-color: #F5B000;
+}
+.join-class-btn {
+    padding: 0.6rem 1.5rem;
+    background: #F5B000;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.join-class-btn:hover {
+    background: #e0a200;
+}
+.join-class-btn:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+}
+.join-class-msg {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.join-class-msg.success {
+    background: #d1fae5;
+    color: #065f46;
+}
+.join-class-msg.error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 /* Guest Banner */
 .guest-banner {
     position: fixed;
@@ -695,7 +778,8 @@ body {
         display: flex;
         align-items: center;
         gap: 1rem;
-        padding: 1rem 1.25rem;
+        padding: 0 1.25rem;
+        height: 60px;
         background: #ffffff;
         border-bottom: 1px solid #e5e7eb;
         position: fixed;

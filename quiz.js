@@ -51,6 +51,9 @@ const questionTextEl = document.getElementById('question-text');
 const optionsContainerEl = document.getElementById('options-container');
 const checkBtnEl = document.getElementById('check-btn');
 const nextBtnEl = document.getElementById('next-btn');
+const explanationPanelEl = document.getElementById('explanation-panel');
+const explanationStepsEl = document.getElementById('explanation-steps');
+const explanationSummaryEl = document.getElementById('explanation-summary');
 
 const finalScoreEl = document.getElementById('final-score');
 const finalPercentageEl = document.getElementById('final-percentage');
@@ -497,6 +500,72 @@ async function trackUserAttempt(questionId, topic, selectedIndex, isCorrect, tim
     }
 }
 
+// Convert plain-text math notation to MathJax-rendered math
+function mathify(text) {
+    // If already contains MathJax delimiters, return as-is
+    // Check for \( \) \[ \] or paired $...$ but not lone $ (currency)
+    if (/\\\(|\\\)|\\\[|\\\]|\$[^$]+\$/.test(text)) return text;
+
+    // Find each "base^exponent" pattern and wrap in \(...\) for MathJax.
+    // Exponent is either {braced}, (parenthesized), or a single digit/letter.
+    var result = text.replace(
+        /([a-zA-Z0-9\)√π]+)\^(\{[^}]+\}|\([^)]*\)|[0-9]+|[a-zA-Z])/g,
+        function(_m, base, exp) {
+            var inner = exp.replace(/^[{(]|[})]$/g, '');
+            return '\\(' + base + '^{' + inner + '}' + '\\)';
+        }
+    );
+
+    // Add spaces around operators (=, ×, ÷, +, -) when squeezed between values
+    // e.g. "cost×1.45=34.80" → "cost × 1.45 = 34.80"
+    result = result.replace(/([a-zA-Z0-9\)√π\.\$%])([=×÷])([a-zA-Z0-9\(√π\$])/g, '$1 $2 $3');
+    // Run twice to catch consecutive operators like "a=b×c=d"
+    result = result.replace(/([a-zA-Z0-9\)√π\.\$%])([=×÷])([a-zA-Z0-9\(√π\$])/g, '$1 $2 $3');
+
+    return result;
+}
+
+// Show explanation panel for the current question
+function showExplanation(question) {
+    if (!explanationPanelEl) return;
+    const exp = question.explanation;
+    if (!exp) return;
+
+    // exp is already parsed (JSONB column)
+    const data = typeof exp === 'string' ? JSON.parse(exp) : exp;
+
+    if (data.steps && data.steps.length > 0) {
+        explanationStepsEl.innerHTML = data.steps
+            .map(s => {
+                // Strip leading "Step N: " prefix if present
+                let text = s.replace(/^Step\s*\d+[\.:]\s*/i, '');
+                text = mathify(text);
+                return `<li><span class="step-text">${text}</span></li>`;
+            })
+            .join('');
+    } else {
+        explanationStepsEl.innerHTML = '';
+    }
+
+    if (data.summary) {
+        explanationSummaryEl.innerHTML = mathify(data.summary);
+        explanationSummaryEl.style.display = 'block';
+    } else {
+        explanationSummaryEl.style.display = 'none';
+    }
+
+    explanationPanelEl.style.display = 'block';
+
+    // Re-render MathJax in case explanation contains math
+    if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([explanationPanelEl]).catch(() => {});
+    }
+}
+
+function hideExplanation() {
+    if (explanationPanelEl) explanationPanelEl.style.display = 'none';
+}
+
 // Check answer with new logic
 function checkAnswer() {
     if (isAnswering || userAnswers[currentQuestionIndex] === null) return;
@@ -515,11 +584,14 @@ function checkAnswer() {
     if (isCorrect) {
         // Correct answer - show success and show Next button
         selectedOption.classList.add('correct');
-        
+
+        // Show explanation
+        showExplanation(question);
+
         // Hide Check button, show Next button
         checkBtnEl.style.display = 'none';
         nextBtnEl.style.display = 'block';
-        
+
     } else {
         // Wrong answer - immediately lose a heart and increment attempts
         livesRemaining--;
@@ -551,7 +623,10 @@ function checkAnswer() {
         if (currentAttempts >= maxAttemptsPerQuestion) {
             const correctOption = document.querySelector(`[data-index="${question.correct_index}"]`);
             correctOption.classList.add('correct');
-            
+
+            // Show explanation
+            showExplanation(question);
+
             // Hide Check button, show Next button
             checkBtnEl.style.display = 'none';
             nextBtnEl.style.display = 'block';
@@ -561,6 +636,9 @@ function checkAnswer() {
 
 // Move to next question or end quiz
 function moveToNextQuestion() {
+    // Hide explanation
+    hideExplanation();
+
     // Reset button states
     nextBtnEl.style.display = 'none';
     checkBtnEl.style.display = 'block';

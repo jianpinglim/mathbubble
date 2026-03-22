@@ -48,7 +48,16 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(express.static(__dirname));
+// Serve static files BEFORE routes
+app.use(express.static(__dirname, {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css; charset=utf-8');
+        } else if (path.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        }
+    }
+}));
 
 // API endpoint to provide Supabase config to frontend
 app.get('/api/config', (req, res) => {
@@ -84,9 +93,32 @@ app.get('/settings', (req, res) => {
     res.sendFile(path.join(__dirname, 'settings.html'));
 });
 
-// Handle SPA routing - redirect unknown routes to home
-app.get('*', (req, res) => {
-    res.redirect('/');
+app.get('/leaderboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'leaderboard.html'));
+});
+
+// Teacher routes
+app.get('/teacher/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'teacher_login.html'));
+});
+
+app.get('/teacher', (req, res) => {
+    res.sendFile(path.join(__dirname, 'teacher.html'));
+});
+
+app.get('/teacher/student/:id', (req, res) => {
+    res.sendFile(path.join(__dirname, 'teacher_student.html'));
+});
+
+// Handle 404 - serve index for SPA routing only for page requests
+app.use((req, res) => {
+    // Only redirect if it looks like a page request (no file extension)
+    const requestPath = req.path;
+    if (!requestPath.includes('.') && req.method === 'GET') {
+        res.sendFile(path.join(__dirname, 'index.html'));
+    } else {
+        res.status(404).send('Not Found');
+    }
 });
 
 app.listen(PORT, () => {

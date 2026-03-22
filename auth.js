@@ -181,10 +181,17 @@ async function initializeAuth() {
                         window.history.replaceState(null, '', window.location.pathname);
                     }
                     
+                    if (isHomePage() && sessionStorage.getItem('pendingTeacherRedirect')) {
+                        sessionStorage.removeItem('pendingTeacherRedirect');
+                        isRedirecting = true;
+                        window.location.href = '/teacher';
+                        return;
+                    }
+
                     if (isHomePage()) {
                         updateAuthUI();
                     }
-                    
+
                 } else if (event === 'SIGNED_OUT') {
                     currentUser = null;
                 }
@@ -220,6 +227,13 @@ async function initializeAuth() {
                             };
 
                             window.history.replaceState(null, '', window.location.pathname);
+
+                            if (isHomePage() && sessionStorage.getItem('pendingTeacherRedirect')) {
+                                sessionStorage.removeItem('pendingTeacherRedirect');
+                                isRedirecting = true;
+                                window.location.href = '/teacher';
+                                return null;
+                            }
 
                             if (isHomePage()) {
                                 updateAuthUI();
@@ -258,6 +272,12 @@ async function initializeAuth() {
                             isGuest: false
                         };
                         window.history.replaceState(null, '', window.location.pathname);
+                        if (isHomePage() && sessionStorage.getItem('pendingTeacherRedirect')) {
+                            sessionStorage.removeItem('pendingTeacherRedirect');
+                            isRedirecting = true;
+                            window.location.href = '/teacher';
+                            return null;
+                        }
                         if (isHomePage()) {
                             updateAuthUI();
                         }
@@ -290,7 +310,7 @@ async function initializeAuth() {
                 // Normal page load - check session
                 try {
                     const { data: { session } } = await window.supabaseClient.auth.getSession();
-                    
+
                     if (session?.user) {
                         await ensureUserRow(session.user);
                         currentUser = {
@@ -300,7 +320,16 @@ async function initializeAuth() {
                             avatar: session.user.user_metadata?.avatar_url || '👤',
                             isGuest: false
                         };
-                        
+
+                        // Supabase may have auto-consumed the OAuth code (detectSessionInUrl),
+                        // so check the teacher redirect flag here too.
+                        if (isHomePage() && sessionStorage.getItem('pendingTeacherRedirect')) {
+                            sessionStorage.removeItem('pendingTeacherRedirect');
+                            isRedirecting = true;
+                            window.location.href = '/teacher';
+                            return null;
+                        }
+
                         authInitialized = true;
                         return currentUser;
                     }

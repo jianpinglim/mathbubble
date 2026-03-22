@@ -96,9 +96,10 @@ async function initializePage() {
         await loadUserStats(currentUser);
         await loadForYouCards(currentUser);
         await loadPracticeSubjects();
-        
+
         if (!currentUser.isGuest) {
             hideGuestPrompt();
+            showJoinClassCard(currentUser);
         } else {
             showGuestPrompt();
         }
@@ -940,14 +941,21 @@ function setupTabNavigation() {
     
     navItems.forEach(item => {
         item.addEventListener('click', function(e) {
-            e.preventDefault();
-            
             // Skip if disabled
             if (this.classList.contains('disabled')) {
+                e.preventDefault();
                 return;
             }
-            
+
             const targetTab = this.dataset.tab;
+
+            // Navigate to leaderboard page instead of tab switching
+            if (targetTab === 'leaderboard') {
+                window.location.href = '/leaderboard';
+                return;
+            }
+
+            e.preventDefault();
             
             // Update active nav item
             navItems.forEach(nav => nav.classList.remove('active'));
@@ -1086,12 +1094,121 @@ document.addEventListener('DOMContentLoaded', function() {
     if (homeSignInBtn) {
         homeSignInBtn.addEventListener('click', function() {
             localStorage.removeItem('guestUser');
-            
+
             if (window.authManager) {
                 window.authManager.getCurrentUser = () => null;
             }
-            
+
             window.location.href = '/login';
         });
     }
+
+    // Join class button
+    const joinBtn = document.getElementById('join-class-btn');
+    const joinInput = document.getElementById('join-code-input');
+    if (joinBtn) {
+        joinBtn.addEventListener('click', joinClass);
+        joinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinClass(); });
+    }
 });
+
+// ── Join a class ─────────────────────────────────────────────────────────────
+
+async function showJoinClassCard(user) {
+    const card = document.getElementById('join-class-card');
+    if (!card || user.isGuest) return;
+
+    // Check if student is already in a class
+    const sb = window.supabaseClient;
+    if (!sb) return;
+
+    const { data: membership } = await sb
+        .from('class_members')
+        .select('class_id')
+        .eq('student_id', user.id)
+        .limit(1);
+
+    if (membership && membership.length > 0) {
+        // Already in a class — hide the card
+        card.style.display = 'none';
+        return;
+    }
+
+    card.style.display = 'block';
+}
+
+async function joinClass() {
+    const input = document.getElementById('join-code-input');
+    const btn = document.getElementById('join-class-btn');
+    const msgEl = document.getElementById('join-class-msg');
+    const code = input.value.trim().toUpperCase();
+
+    if (!code) return;
+
+    const sb = window.supabaseClient;
+    const user = window.authManager?.getCurrentUser();
+    if (!sb || !user || user.isGuest) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Joining…';
+    msgEl.style.display = 'none';
+
+    try {
+        // 1. Look up class by join code
+        const { data: cls, error: clsErr } = await sb
+            .from('classes')
+            .select('id, name')
+            .eq('join_code', code)
+            .maybeSingle();
+
+        if (clsErr || !cls) {
+            showJoinMsg('Class not found. Check the code and try again.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Join';
+            return;
+        }
+
+        // 2. Check if already a member
+        const { data: existing } = await sb
+            .from('class_members')
+            .select('id')
+            .eq('class_id', cls.id)
+            .eq('student_id', user.id)
+            .maybeSingle();
+
+        if (existing) {
+            showJoinMsg('You are already in this class!', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Join';
+            return;
+        }
+
+        // 3. Insert membership
+        const { error: insertErr } = await sb
+            .from('class_members')
+            .insert({ class_id: cls.id, student_id: user.id });
+
+        if (insertErr) throw insertErr;
+
+        showJoinMsg('Joined ' + cls.name + ' successfully!', 'success');
+        btn.textContent = 'Joined!';
+
+        // Hide card after a moment
+        setTimeout(() => {
+            document.getElementById('join-class-card').style.display = 'none';
+        }, 2000);
+
+    } catch (err) {
+        console.error('Join class error:', err);
+        showJoinMsg('Failed to join class. Try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Join';
+    }
+}
+
+function showJoinMsg(text, type) {
+    const el = document.getElementById('join-class-msg');
+    el.textContent = text;
+    el.className = 'join-class-msg ' + type;
+    el.style.display = 'block';
+}
